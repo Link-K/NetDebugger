@@ -114,3 +114,100 @@ button {
     background-color: #0f0f0f69;
   }
 }
+
+/* Sidebar and layout styles */
+.app-root {
+  min-height: 100vh;
+}
+
+.sidebar-toggle {
+  position: fixed;
+  top: 12px;
+  left: 12px;
+  z-index: 60;
+  border-radius: 6px;
+  padding: 6px 10px;
+  background: #ffffff;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+  border: 1px solid transparent;
+}
+
+.sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 0;
+  overflow: hidden;
+  background: #ffffff;
+  box-shadow: 2px 0 6px rgba(0,0,0,0.08);
+  transition: width 0.22s ease;
+  z-index: 50;
+}
+
+.sidebar.open {
+  width: 220px;
+}
+
+.sidebar-inner {
+  display: flex;
+  flex-direction: column;
+  padding: 56px 12px 12px 12px;
+  gap: 8px;
+}
+
+.sidebar-inner button {
+  text-align: left;
+  padding: 10px 12px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  background: transparent;
+  cursor: pointer;
+}
+
+.sidebar-inner button.active {
+  background: #e8eefc;
+  border-color: #d0dbfb;
+}
+
+.content {
+  transition: margin-left 0.22s ease, padding 0.22s ease;
+  margin-left: 0;
+  padding: 20px;
+}
+
+.content.shift {
+  margin-left: 220px;
+}
+
+.views {
+  margin-top: 18px;
+}
+
+.view {
+  padding: 12px;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  margin-bottom: 12px;
+}
+
+.view.hidden {
+  display: none;
+}
+
+.view.active {
+  display: block;
+}
+
+@media (prefers-color-scheme: dark) {
+  .sidebar,
+  .sidebar-toggle,
+  .view {
+    background: #1e1e1e;
+  }
+  .sidebar-inner button.active {
+    background: #2b2b3a;
+    border-color: #3a3a4a;
+  }
+}
