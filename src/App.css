@@ -116,8 +116,15 @@ button {
 }
 
 /* Sidebar and layout styles */
+html, body, #root {
+  height: 100%;
+  margin: 0;
+}
+
 .app-root {
   min-height: 100vh;
+  display: flex;
+  flex-direction: column;
 }
 
 .sidebar-toggle {
@@ -173,15 +180,21 @@ button {
 .content {
   transition: margin-left 0.22s ease, padding 0.22s ease;
   margin-left: 0;
-  padding: 20px;
+  padding: 12px 20px 16px 56px;
+  /* keep content away from the left edge so the top-left toggle won't overlap controls */
+  box-sizing: border-box;
+  flex: 1 1 auto;
+  overflow: auto;
 }
 
 .content.shift {
   margin-left: 220px;
+  /* when sidebar is open, reduce extra left padding so layout stays balanced */
+  padding-left: 20px;
 }
 
 .views {
-  margin-top: 18px;
+  margin-top: 12px;
 }
 
 .view {
@@ -190,6 +203,9 @@ button {
   background: #ffffff;
   box-shadow: 0 1px 3px rgba(0,0,0,0.08);
   margin-bottom: 12px;
+  max-width: 100%;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .view.hidden {
@@ -210,4 +226,83 @@ button {
     background: #2b2b3a;
     border-color: #3a3a4a;
   }
+}
+
+/* Spacing improvements for controls inside views */
+.view input,
+.view button,
+.view label,
+.view select,
+.view textarea {
+  margin-right: 8px;
+  margin-bottom: 8px;
+}
+
+/* Add vertical spacing between direct child blocks inside a view */
+.view > div:not([contenteditable]) {
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* Ensure inline form labels align their children vertically centered */
+.view label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Ensure form controls inside views share the same vertical sizing and center alignment */
+.view input,
+.view button,
+.view select,
+.view textarea {
+  box-sizing: border-box;
+  /* Remove inline-flex, let parent flex align */
+  line-height: 1.6;
+  padding-top: 6px;
+  padding-bottom: 6px;
+  align-self: center;
+}
+
+/* Ensure all direct children in the controls row vertically center */
+.view > div:not([contenteditable]) > * {
+  align-self: center;
+}
+
+/* Precise centering for the IP/Port/button row */
+.control-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.control-row label {
+  display: inline-flex;
+  align-items: center;
+  margin-bottom: 0;
+}
+
+.control-row .form-label-text {
+  display: inline-flex;
+  align-items: center;
+  line-height: 1;
+}
+
+/* Override global .view control margins inside the control row.
+   Flex alignment uses margin boxes; bottom margins here can cause visual mis-centering. */
+.control-row label,
+.control-row input,
+.control-row button,
+.control-row select,
+.control-row textarea,
+.control-row .form-label-text {
+  margin: 0;
+}
+
+/* Add a little more space between the editable message area and the action buttons */
+.view [contenteditable] {
+  margin-bottom: 12px;
 }
