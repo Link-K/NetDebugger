@@ -1,14 +1,14 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-mod UDPServer;
+mod udp_server;
 
 #[tauri::command]
 fn start_udp_server(app: tauri::AppHandle, bind_addr: String) -> Result<String, String> {
-    UDPServer::start(app, bind_addr)
+    udp_server::start(app, bind_addr)
 }
 
 #[tauri::command]
 fn stop_udp_server() -> Result<String, String> {
-    UDPServer::stop()
+    udp_server::stop()
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
