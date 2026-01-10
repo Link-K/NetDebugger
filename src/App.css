@@ -160,6 +160,43 @@ html, body, #root {
   gap: 8px;
 }
 
+.commands-toggle {
+  position: fixed;
+  left: 12px;
+  bottom: 12px;
+  z-index: 70;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  background: #ffffff;
+  color: inherit;
+  cursor: pointer;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.12);
+}
+
+.commands-toggle svg {
+  display: block;
+}
+
+.commands-toggle:hover {
+  background: #f0f0f0;
+}
+
+@media (prefers-color-scheme: dark) {
+  .commands-toggle {
+    background: #0f0f0f98;
+    color: #fff;
+  }
+  .commands-toggle:hover {
+    background: #1a1a1a;
+  }
+}
+
 .sidebar-inner button {
   text-align: center;
   padding: 10px 12px;
@@ -431,4 +468,147 @@ html, body, #root {
 /* Add a little more space between the editable message area and the action buttons */
 .view [contenteditable] {
   margin-bottom: 12px;
+}
+
+/* Commands sidebar */
+.commands-button {
+  padding: 6px 12px;
+}
+
+.commands-sidebar {
+  position: fixed;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 0;
+  overflow: hidden;
+  background: #1e1e1e; /* dark to match app */
+  color: #f6f6f6;
+  box-shadow: -6px 0 18px rgba(0,0,0,0.6);
+  transition: width 0.18s ease;
+  z-index: 200;
+}
+
+.commands-sidebar.open {
+  width: 360px;
+}
+
+.commands-sidebar .commands-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between; /* title centered while actions on right */
+  padding: 8px 12px 8px 72px; /* reserve space for close button */
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  box-sizing: border-box;
+  position: relative;
+}
+
+
+.commands-close {
+  position: absolute;
+  left: 12px;
+  top: 8px;
+  z-index: 60;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(43,43,43,0.95);
+  color: #fff;
+  border: 0;
+  border-radius: 50%;
+  box-shadow: 0 6px 14px rgba(0,0,0,0.6);
+  cursor: pointer;
+}
+
+.commands-close svg {
+  display: block;
+}
+
+.commands-close:hover {
+  background: rgba(60,60,60,0.95);
+}
+
+.commands-header h3 {
+  font-size: 18px;
+  margin: 0;
+}
+
+.commands-actions {
+  position: static;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+/* Ensure all button text is laid out horizontally (prevent accidental vertical/rotated text)
+   Use high-specificity but keep selectors limited to app UI elements to avoid affecting third-party libs */
+button,
+.btn,
+.commands-sidebar button,
+.commands-actions button,
+.toolbar-row button,
+.send-group button,
+.control-row button {
+  writing-mode: horizontal-tb !important;
+  transform: none !important;
+  white-space: nowrap !important;
+  text-orientation: mixed !important;
+}
+
+.commands-actions button {
+  padding: 6px 10px;
+  background: #2b2b2b;
+  color: #fff;
+  border: 0;
+  border-radius: 8px;
+  box-shadow: 0 3px 8px rgba(0,0,0,0.4);
+  cursor: pointer;
+}
+
+.commands-actions button:hover {
+  background: #3a3a3a;
+}
+
+.commands-sidebar .commands-body {
+  height: calc(100% - 56px);
+  overflow: auto;
+}
+
+/* Ensure sidebar isn't vertically centered by parent .view flex rules */
+.view > .commands-sidebar {
+  align-self: flex-start;
+  margin-top: 0;
+}
+
+.commands-body {
+  padding: 12px;
+}
+
+.commands-sidebar .commands-table th,
+.commands-sidebar .commands-table td {
+  padding: 8px 6px;
+  border-bottom: 1px solid rgba(255,255,255,0.03);
+  color: inherit;
+}
+
+.commands-sidebar .commands-table thead th {
+  color: #cfcfcf;
+  font-weight: 600;
+}
+
+.commands-sidebar .commands-table td button {
+  padding: 6px 8px;
+  background: #2b2b2b;
+  color: #fff;
+  border: 0;
+  border-radius: 6px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+  cursor: pointer;
+}
+
+.commands-sidebar .commands-table td button:hover {
+  background: #3a3a3a;
 }
