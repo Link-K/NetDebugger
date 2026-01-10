@@ -7,7 +7,7 @@
 }
 :root {
   font-family: Inter, Avenir, Helvetica, Arial, sans-serif;
-  font-size: 16px;
+  font-size: 14px;
   line-height: 24px;
   font-weight: 400;
 
@@ -58,6 +58,7 @@ a:hover {
 
 h1 {
   text-align: center;
+  margin-top: 0%;
 }
 
 input,
@@ -79,7 +80,7 @@ button {
 }
 
 button:hover {
-  border-color: #396cd8;
+  border-color: #1d5ce5;
 }
 button:active {
   border-color: #396cd8;
@@ -89,10 +90,6 @@ button:active {
 input,
 button {
   outline: none;
-}
-
-#greet-input {
-  margin-right: 5px;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -164,7 +161,7 @@ html, body, #root {
 }
 
 .sidebar-inner button {
-  text-align: left;
+  text-align: center;
   padding: 10px 12px;
   border-radius: 6px;
   border: 1px solid transparent;
@@ -238,6 +235,32 @@ html, body, #root {
   margin-bottom: 8px;
 }
 
+/* Toolbar row (clear/copy/mode/ip/port/connect) */
+.toolbar-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+/* Remove margin-based spacing in toolbar row so items sit on one line cleanly */
+.toolbar-row label,
+.toolbar-row input,
+.toolbar-row button,
+.toolbar-row select,
+.toolbar-row textarea,
+.toolbar-row span,
+.toolbar-row .form-label-text {
+  margin: 0;
+}
+
+.toolbar-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: 8px;
+}
+
 /* Add vertical spacing between direct child blocks inside a view */
 .view > div:not([contenteditable]) {
   margin-bottom: 8px;
@@ -279,6 +302,36 @@ html, body, #root {
   flex-wrap: wrap;
 }
 
+/* Make every control line vertically centered by default */
+.toolbar-row,
+.control-row {
+  display: flex;
+  align-items: center;
+}
+
+.toolbar-row > *,
+.control-row > * {
+  align-self: center;
+}
+
+/* Ensure common controls center nicely */
+.view button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.view input:not([type="checkbox"]) {
+  height: 34px;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+.view input[type="checkbox"] {
+  height: 16px;
+  width: 16px;
+}
+
 .control-row label {
   display: inline-flex;
   align-items: center;
@@ -289,6 +342,79 @@ html, body, #root {
   display: inline-flex;
   align-items: center;
   line-height: 1;
+  white-space: nowrap;
+  flex: 0 0 auto;
+}
+
+/* Send row spacing/width tuning */
+.control-row {
+  gap: 12px;
+}
+
+.send-row {
+  width: 100%;
+}
+
+.send-row-1 {
+  margin-bottom: 8px;
+}
+
+.control-row.send-row-2 {
+  margin-top: 2px;
+  gap: 10px;
+}
+
+/* Make controls within the message/send row a bit looser */
+.control-row.send-row-2 .field {
+  gap: 10px;
+}
+
+.control-row.send-row-2 .send-group {
+  gap: 2px;
+  margin-left: auto; /* Push to the far right */
+  padding-left: 10px; /* Ensure some space even when pushed */
+}
+
+.control-row .field {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+/* Target field should not "eat" whitespace between target and message */
+.control-row .field-target {
+  flex: 0 0 auto;
+}
+
+.control-row .field-target input {
+  width: 220px;
+}
+
+/* Message field grows to take remaining space */
+.control-row .field-message {
+  flex: 1 1 360px;
+}
+
+.control-row .field-message input {
+  width: 100%;
+}
+
+/* Give ASCII/Send a bit more breathing room */
+.control-row .send-group {
+  gap: 14px;
+}
+
+.control-row .field-interval {
+  flex: 0 0 auto;
+}
+
+.control-row .field-interval input {
+  width: 110px;
+}
+
+.control-row .field-repeat {
+  flex: 0 0 auto;
 }
 
 /* Override global .view control margins inside the control row.

@@ -60,6 +60,67 @@ function UDPServerView({ active }: { active: boolean }) {
 	const [status, setStatus] = useState("");
 	const [hideDup, setHideDup] = useState(true);
 
+	// send controls
+	const [sendTarget, setSendTarget] = useState("192.168.1.212:61206");
+	const [sendMsg, setSendMsg] = useState("");
+	const [sendModeLocal, setSendModeLocal] = useState<"ascii" | "hex">("ascii");
+	const [repeatEnabled, setRepeatEnabled] = useState(false);
+	const [repeatMs, setRepeatMs] = useState("1000");
+	const repeatRef = useRef<number | null>(null);
+
+	useEffect(() => {
+		return () => {
+			if (repeatRef.current != null) {
+				clearInterval(repeatRef.current);
+				repeatRef.current = null;
+			}
+		};
+	}, []);
+
+	const parseHex = (s: string) => {
+		const cleaned = s.replace(/[^0-9a-fA-F]/g, "");
+		if (cleaned.length % 2 !== 0) throw new Error("hex length must be even");
+		const bytes = new Uint8Array(cleaned.length / 2);
+		for (let i = 0; i < bytes.length; i++) {
+			bytes[i] = parseInt(cleaned.substr(i * 2, 2), 16);
+		}
+		return bytes;
+	};
+
+	const sendOnce = async () => {
+		try {
+			let bytes: Uint8Array;
+			if (sendModeLocal === "hex") {
+				bytes = parseHex(sendMsg);
+			} else {
+				bytes = new TextEncoder().encode(sendMsg);
+			}
+			const b64 = btoa(String.fromCharCode(...bytes));
+			await invoke<string>("udp_send", { toAddr: sendTarget, dataB64: b64 });
+			appendStatus(`sent ${bytes.length} bytes to ${sendTarget}`);
+		} catch (e) {
+			appendStatus(String(e));
+		}
+	};
+
+	const startRepeat = () => {
+		if (repeatRef.current != null) return;
+		const ms = Number(repeatMs) || 1000;
+		const id = window.setInterval(() => {
+			sendOnce();
+		}, ms);
+		repeatRef.current = id;
+		setRepeatEnabled(true);
+	};
+
+	const stopRepeat = () => {
+		if (repeatRef.current != null) {
+			clearInterval(repeatRef.current);
+			repeatRef.current = null;
+		}
+		setRepeatEnabled(false);
+	};
+
 	useEffect(() => {
 		if (editorRef.current) {
 			editorRef.current.innerHTML = html;
@@ -191,7 +252,7 @@ function UDPServerView({ active }: { active: boolean }) {
 
 	return (
 		<div className={"view" + (active ? " active" : " hidden")}>
-			<h2>UDP Server</h2>
+			<h1>UDP Server</h1>
 
 			<div
 				ref={editorRef}
@@ -201,7 +262,7 @@ function UDPServerView({ active }: { active: boolean }) {
 				aria-label="富文本编辑器"
 			/>
 
-			<div style={{ marginBottom: 8, display: "flex", gap: 8, alignItems: "center" }}>
+			<div className="toolbar-row" style={{ marginBottom: 4 }}>
 				<button
 					type="button"
 					onClick={() => {
@@ -224,8 +285,7 @@ function UDPServerView({ active }: { active: boolean }) {
 					复制消息
 				</button>
 
-				<div style={{ display: "flex", gap: 8, alignItems: "center", marginLeft: 8 }}>
-					<span style={{ fontSize: 12 }}>显示:</span>
+				<div className="toolbar-switch">
 					<div
 						role="switch"
 						aria-checked={displayMode === "hex"}
@@ -243,7 +303,7 @@ function UDPServerView({ active }: { active: boolean }) {
 								width: 44,
 								height: 24,
 								borderRadius: 16,
-								background: displayMode === "hex" ? "#4caf50" : "#ccc",
+								background: displayMode === "hex" ? "#4caf50" : "#000000",
 								padding: 3,
 								boxSizing: "border-box",
 								position: "relative",
@@ -266,21 +326,7 @@ function UDPServerView({ active }: { active: boolean }) {
 					</div>
 				</div>
 
-				<div style={{ display: "flex", gap: 8, alignItems: "center", marginLeft: 8 }}>
-					<label style={{ display: "flex", gap: 6, alignItems: "center", fontSize: 12, color: "#666" }}>
-						<input
-							type="checkbox"
-							checked={hideDup}
-							onChange={(e) => setHideDup(e.currentTarget.checked)}
-							aria-label="过滤重复包"
-						/>
-						过滤重复(50ms)
-					</label>
-				</div>
-			</div>
-
-			<div className="control-row" style={{ display: "flex", gap: 8, marginBottom: 8, alignItems: "center" }}>
-				<label style={{ display: "flex", gap: 4, alignItems: "center" }}>
+				<label>
 					<span className="form-label-text">IP:</span>
 					<input
 						placeholder="0.0.0.0"
@@ -304,7 +350,7 @@ function UDPServerView({ active }: { active: boolean }) {
 						style={{ width: 150 }}
 					/>
 				</label>
-				<label style={{ display: "flex", gap: 4, alignItems: "center" }}>
+				<label>
 					<span className="form-label-text">Port:</span>
 					<input
 						placeholder="9000"
@@ -327,9 +373,65 @@ function UDPServerView({ active }: { active: boolean }) {
 						style={{ width: 100 }}
 					/>
 				</label>
+
 				<button type="button" onClick={toggleConnection} style={{ padding: "6px 12px" }}>
 					{connected ? "断开" : "连接"}
 				</button>
+			</div>
+
+			<div className="control-row send-row send-row-1">
+				<label className="field field-target">
+					<span className="form-label-text">目标:</span>
+					<input
+						placeholder="ip:port"
+						value={sendTarget}
+						onChange={(e) => setSendTarget(e.currentTarget.value)}
+					/>
+				</label>
+				<label className="field field-interval">
+					<span className="form-label-text">间隔(ms):</span>
+					<input
+						value={repeatMs}
+						onChange={(e) => setRepeatMs(e.currentTarget.value.replace(/[^0-9]/g, ""))}
+					/>
+				</label>
+
+				<label className="field field-repeat">
+					<input
+						type="checkbox"
+						checked={repeatEnabled}
+						onChange={(e) => {
+							if (e.currentTarget.checked) startRepeat();
+							else stopRepeat();
+						}}
+					/>
+					<span style={{ fontSize: 12 }}>连续发送</span>
+				</label>
+			</div>
+
+			<div className="control-row send-row send-row-2">
+				<label className="field field-message">
+					<span className="form-label-text">消息:</span>
+					<input
+						placeholder="要发送的消息"
+						value={sendMsg}
+						onChange={(e) => setSendMsg(e.currentTarget.value)}
+					/>
+				</label>
+
+				<div className="send-group">
+					<div
+						role="switch"
+						aria-checked={sendModeLocal === "hex"}
+						onClick={() => setSendModeLocal((m) => (m === "ascii" ? "hex" : "ascii"))}
+						style={{ display: "inline-flex", alignItems: "center", gap: 8, cursor: "pointer", userSelect: "none" }}
+					>
+						<span style={{ fontSize: 12 }}>{sendModeLocal === "hex" ? "HEX" : "ASCII"}</span>
+					</div>
+					<button type="button" onClick={() => sendOnce()} style={{ padding: "6px 12px", marginLeft: '16px' }}>
+						发送
+					</button>
+				</div>
 			</div>
 		</div>
 	);

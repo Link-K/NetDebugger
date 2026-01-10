@@ -7,6 +7,11 @@ fn start_udp_server(app: tauri::AppHandle, bind_addr: String) -> Result<String, 
 }
 
 #[tauri::command]
+fn udp_send(to_addr: String, data_b64: String) -> Result<String, String> {
+    udp_server::send_to(to_addr, data_b64)
+}
+
+#[tauri::command]
 fn stop_udp_server() -> Result<String, String> {
     udp_server::stop()
 }
@@ -17,7 +22,8 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
             start_udp_server,
-            stop_udp_server
+            stop_udp_server,
+            udp_send
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

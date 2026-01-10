@@ -130,3 +130,20 @@ pub fn stop() -> Result<String, String> {
         Err("UDP server not running".into())
     }
 }
+
+pub fn send_to(to_addr: String, data_b64: String) -> Result<String, String> {
+    // decode base64
+    let data = match base64::engine::general_purpose::STANDARD.decode(&data_b64) {
+        Ok(d) => d,
+        Err(e) => return Err(format!("base64 decode error: {}", e)),
+    };
+
+    // bind ephemeral socket and send
+    match UdpSocket::bind("0.0.0.0:0") {
+        Ok(sock) => match sock.send_to(&data, &to_addr) {
+            Ok(n) => Ok(format!("sent {} bytes to {}", n, to_addr)),
+            Err(e) => Err(format!("send error: {}", e)),
+        },
+        Err(e) => Err(format!("bind error: {}", e)),
+    }
+}
