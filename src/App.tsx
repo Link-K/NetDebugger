@@ -396,17 +396,42 @@ function UDPServerView({ active }: { active: boolean }) {
 					/>
 				</label>
 
-				<label className="field field-repeat">
-					<input
-						type="checkbox"
-						checked={repeatEnabled}
-						onChange={(e) => {
-							if (e.currentTarget.checked) startRepeat();
-							else stopRepeat();
+				<div
+					className="field field-repeat"
+					role="switch"
+					aria-checked={repeatEnabled}
+					onClick={() => {
+						if (!repeatEnabled) startRepeat();
+						else stopRepeat();
+					}}
+					style={{ display: "inline-flex", alignItems: "center", gap: 8, cursor: "pointer", userSelect: "none" }}
+				>
+					<div
+						style={{
+							width: 44,
+							height: 24,
+							borderRadius: 16,
+							background: repeatEnabled ? "#4caf50" : "#000000",
+							padding: 3,
+							boxSizing: "border-box",
+							position: "relative",
 						}}
-					/>
+					>
+						<div
+							style={{
+								width: 18,
+								height: 18,
+								borderRadius: 9,
+								background: "#fff",
+								position: "absolute",
+								left: repeatEnabled ? 23 : 3,
+								transition: "left 0.12s ease",
+								boxShadow: "0 1px 2px rgba(0,0,0,0.2)",
+							}}
+						/>
+					</div>
 					<span style={{ fontSize: 12 }}>连续发送</span>
-				</label>
+				</div>
 			</div>
 
 			<div className="control-row send-row send-row-2">
