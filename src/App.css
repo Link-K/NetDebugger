@@ -470,6 +470,115 @@ html, body, #root {
   margin-bottom: 12px;
 }
 
+/* Active connections box */
+.connections-box {
+  border: 1px solid rgba(0,0,0,0.06);
+  padding: 8px;
+  border-radius: 8px;
+  max-width: 520px;
+  background: rgba(0,0,0,0.02);
+  margin-bottom: 8px;
+}
+
+/* IMPORTANT: override the global `.view button { margin-bottom: 8px; }` style.
+   Flex alignment uses margin boxes; a bottom margin on the disconnect button will visually shift it upward. */
+.connections-box button,
+.connections-box .conn-disconnect,
+.connections-box .conn-text,
+.connections-box li {
+  margin: 0 !important;
+}
+
+.connections-box ul {
+  margin: 0;
+}
+.connections-header {
+  font-weight: 600;
+  font-size: 13px;
+  margin-bottom: 6px;
+}
+.connections-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.connection-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px;
+  background: #fff;
+  border-radius: 6px;
+  border: 1px solid rgba(0,0,0,0.06);
+  height: 30px;
+}
+.connection-item.current {
+  box-shadow: 0 1px 6px rgba(0,0,0,0.04);
+  border-color: #d0dbfb;
+  background: #e8eefc;
+}
+.conn-text {
+  font-family: monospace;
+  font-size: 12px;
+  line-height: 1;
+}
+.conn-disconnect {
+  padding: 3px 6px;
+  font-size: 12px;
+  height: 26px;
+  line-height: 1;
+  border-radius: 4px;
+  border: 0;
+  background: #ff6b6b;
+  color: #fff;
+  cursor: pointer;
+}
+.conn-disconnect:hover { background: #ff5454; }
+
+@media (prefers-color-scheme: dark) {
+  .connections-box { background: rgba(255,255,255,0.02); border-color: rgba(255,255,255,0.04); }
+  .connection-item { background: #1a1a1a; border-color: rgba(255,255,255,0.03); }
+  .connection-item.current { background: #2b2b3a; }
+  .conn-disconnect { background: #a33; }
+}
+
+/* High-specificity rules to ensure vertical centering of connection items across theme and overrides */
+.views .view .connections-box .connections-list .connection-item,
+.connections-list .connection-item {
+  display: flex !important;
+  align-items: center !important;
+}
+.connections-list .connection-item .conn-text,
+.connections-list .connection-item .conn-disconnect {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+/* Enforce exact vertical centering by matching heights and line-heights */
+.connections-list .connection-item {
+  align-items: center !important;
+  min-height: 30px !important;
+}
+.connections-list .connection-item .conn-text {
+  height: 26px !important;
+  line-height: 26px !important;
+  padding: 0 6px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+}
+.connections-list .connection-item .conn-disconnect {
+  height: 26px !important;
+  line-height: 26px !important;
+  padding: 0 8px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
 /* Commands sidebar */
 .commands-button {
   padding: 6px 12px;

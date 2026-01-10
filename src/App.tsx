@@ -56,7 +56,13 @@ function UDPServerView({ active, commandsOpen, setCommandsOpen }: { active: bool
 		const n = Number(v);
 		return Number.isInteger(n) && n >= 1 && n <= 65535;
 	};
-	const [connected, setConnected] = useState(false);
+	const [connections, setConnections] = useState<string[]>([]);
+
+	const currentBind = `${ip}:${port}`;
+
+	const isConnected = (bind: string) => {
+		return connections.includes(bind);
+	};
 	const [status, setStatus] = useState("");
 	const [hideDup, setHideDup] = useState(true);
 
@@ -222,7 +228,9 @@ function UDPServerView({ active, commandsOpen, setCommandsOpen }: { active: bool
 				bytes = new TextEncoder().encode(sendMsg);
 			}
 			const b64 = btoa(String.fromCharCode(...bytes));
-			await invoke<string>("udp_send", { toAddr: sendTarget, dataB64: b64 });
+			// Send using the currently configured IP:Port as source when possible.
+			// If there is a running server on that bind, backend uses the same socket (source port matches the listener).
+			await invoke<string>("udp_send_from", { bindAddr: currentBind, toAddr: sendTarget, dataB64: b64 });
 			// save to histories
 			addHistory("send_msg", sendMsg);
 			addHistory("send_target", sendTarget);
@@ -269,6 +277,7 @@ function UDPServerView({ active, commandsOpen, setCommandsOpen }: { active: bool
 		listen("udp:message", (event) => {
 			try {
 				const payload: any = event.payload as any;
+				const bind = payload.bind ?? "";
 				const from = payload.from ?? "unknown";
 				const b64 = payload.data ?? "";
 				const dup = Boolean(payload.dup);
@@ -313,9 +322,8 @@ function UDPServerView({ active, commandsOpen, setCommandsOpen }: { active: bool
 					? `<span style=\"color:#90a4ae;font-size:12px;margin-left:6px;\">#${escapeHtml(seq)}</span>`
 					: "";
 
-				const snippet = `<div style="margin:6px 0;"><span style="color:#999;font-size:12px;margin-right:8px;">${escapeHtml(ts)}</span><strong>${escapeHtml(
-					from
-				)}</strong>${seqTag}${dupTag}: ${contentHtml}</div>`;
+				const who = bind ? `[${escapeHtml(bind)}] ${escapeHtml(from)}` : escapeHtml(from);
+				const snippet = `<div style="margin:6px 0;"><span style="color:#999;font-size:12px;margin-right:8px;">${escapeHtml(ts)}</span><strong>${who}</strong>${seqTag}${dupTag}: ${contentHtml}</div>`;
 				if (editorRef.current) {
 					editorRef.current.insertAdjacentHTML("beforeend", snippet);
 					editorRef.current.scrollTop = editorRef.current.scrollHeight;
@@ -355,27 +363,39 @@ function UDPServerView({ active, commandsOpen, setCommandsOpen }: { active: bool
 	}, [hideDup]);
 
 	const toggleConnection = async () => {
-		if (!connected) {
-			const bindAddr = `${ip}:${port}`;
+		const bindAddr = currentBind;
+		if (!isConnected(bindAddr)) {
 			try {
 				const res = await invoke<string>("start_udp_server", { bindAddr });
-				appendStatus(res ?? "started");
+				appendStatus(res ?? `started ${bindAddr}`);
 				setStatus(res ?? "started");
-				setConnected(true);
+				setConnections((prev) => [bindAddr, ...prev.filter((v) => v !== bindAddr)]);
 			} catch (e) {
 				appendStatus(String(e));
 				setStatus(String(e));
 			}
 		} else {
 			try {
-				const res = await invoke<string>("stop_udp_server");
-				appendStatus(res ?? "stopped");
+				const res = await invoke<string>("stop_udp_server", { bindAddr });
+				appendStatus(res ?? `stopped ${bindAddr}`);
 				setStatus(res ?? "stopped");
-				setConnected(false);
+				setConnections((prev) => prev.filter((v) => v !== bindAddr));
 			} catch (e) {
 				appendStatus(String(e));
 				setStatus(String(e));
 			}
+		}
+	};
+
+	const disconnectBind = async (bindAddr: string) => {
+		try {
+			const res = await invoke<string>("stop_udp_server", { bindAddr });
+			appendStatus(res ?? `stopped ${bindAddr}`);
+			setStatus(res ?? "stopped");
+			setConnections((prev) => prev.filter((v) => v !== bindAddr));
+		} catch (e) {
+			appendStatus(String(e));
+			setStatus(String(e));
 		}
 	};
 
@@ -387,7 +407,7 @@ function UDPServerView({ active, commandsOpen, setCommandsOpen }: { active: bool
 				ref={editorRef}
 				contentEditable
 				onInput={() => setHtml(editorRef.current?.innerHTML ?? "")}
-				style={{ border: "1px solid #ccc", height: 300, overflowY: "auto", padding: 8, borderRadius: 4 }}
+				style={{ border: "1px solid #ccc", height: 250, overflowY: "auto", padding: 8, borderRadius: 4 }}
 				aria-label="富文本编辑器"
 			/>
 
@@ -477,7 +497,6 @@ function UDPServerView({ active, commandsOpen, setCommandsOpen }: { active: bool
 							}
 							addHistory("bind_ip", ip);
 						}}
-						disabled={connected}
 						style={{ width: 150 }}
 					/>
 					<datalist id="hist-bind-ip">
@@ -506,7 +525,6 @@ function UDPServerView({ active, commandsOpen, setCommandsOpen }: { active: bool
 							} else setStatus("");
 							addHistory("bind_port", port);
 						}}
-						disabled={connected}
 						style={{ width: 100 }}
 					/>
 					<datalist id="hist-bind-port">
@@ -517,7 +535,7 @@ function UDPServerView({ active, commandsOpen, setCommandsOpen }: { active: bool
 				</label>
 
 				<button type="button" onClick={toggleConnection} style={{ padding: "6px 12px" }}>
-					{connected ? "断开" : "连接"}
+					{isConnected(currentBind) ? "断开" : "连接"}
 				</button>
 			</div>
 
@@ -668,7 +686,26 @@ function UDPServerView({ active, commandsOpen, setCommandsOpen }: { active: bool
 						发送
 					</button>
 				</div>
+
 			</div>
+			{/* active connections list */}
+			{connections.length > 0 && (
+				<div className="connections-box">
+					<div className="connections-header">活跃连接</div>
+					<ul className="connections-list">
+						{connections.map((c) => (
+							<li
+								key={c}
+								className={c === currentBind ? "connection-item current" : "connection-item"}
+								style={{ display: "flex", alignItems: "center", minHeight: 30, gap: 8 }}
+							>
+								<span className="conn-text" style={{ display: "inline-flex", alignItems: "center", height: 26, lineHeight: "26px", padding: "0 6px" }}>{c}</span>
+								<button className="conn-disconnect" onClick={() => disconnectBind(c)} style={{ height: 26, lineHeight: "26px", padding: "0 8px", display: "inline-flex", alignItems: "center", justifyContent: "center" }}>断开</button>
+							</li>
+						))}
+					</ul>
+				</div>
+			)}
 		</div>
 	);
 }

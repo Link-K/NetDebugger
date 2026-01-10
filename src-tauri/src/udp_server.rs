@@ -2,6 +2,7 @@ use base64::Engine;
 use once_cell::sync::OnceCell;
 use serde_json::json;
 use std::collections::hash_map::DefaultHasher;
+use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use std::net::UdpSocket;
 use std::sync::{mpsc, Mutex};
@@ -13,6 +14,7 @@ use tauri::Emitter;
 pub struct ServerHandle {
     stop_tx: mpsc::Sender<()>,
     thread_handle: Option<JoinHandle<()>>,
+    send_sock: UdpSocket,
 }
 
 impl ServerHandle {
@@ -24,36 +26,33 @@ impl ServerHandle {
     }
 }
 
-static UDP_SERVER: OnceCell<Mutex<Option<ServerHandle>>> = OnceCell::new();
+static UDP_SERVER: OnceCell<Mutex<HashMap<String, ServerHandle>>> = OnceCell::new();
 
 fn init_cell() {
-    UDP_SERVER.get_or_init(|| Mutex::new(None));
+    UDP_SERVER.get_or_init(|| Mutex::new(HashMap::new()));
 }
 
 pub fn start(app: AppHandle, bind_addr: String) -> Result<String, String> {
     init_cell();
     let cell = UDP_SERVER.get().unwrap();
     let mut guard = cell.lock().map_err(|e| format!("lock error: {}", e))?;
-    if guard.is_some() {
-        return Err("UDP server already running".into());
+    if guard.contains_key(&bind_addr) {
+        return Err("UDP server already running for this address".into());
     }
+
+    // Bind here so we can return an error to the caller (and only record a connection when bind succeeds)
+    let sock = UdpSocket::bind(&bind_addr).map_err(|e| format!("bind error: {}", e))?;
+    let _ = sock.set_read_timeout(Some(Duration::from_millis(100)));
+    let send_sock = sock
+        .try_clone()
+        .map_err(|e| format!("socket clone error: {}", e))?;
 
     let (tx, rx) = mpsc::channel::<()>();
     let app_clone = app.clone();
     let addr = bind_addr.clone();
 
     let handle = thread::spawn(move || {
-        let sock = match UdpSocket::bind(&addr) {
-            Ok(s) => s,
-            Err(e) => {
-                let payload = json!({"error": format!("bind error: {}", e)});
-                let _ = app_clone.emit("udp:server:error", payload);
-                return;
-            }
-        };
-
-        // Allow graceful shutdown: recv_from must not block forever or stop() will hang.
-        let _ = sock.set_read_timeout(Some(Duration::from_millis(100)));
+        let sock = sock;
 
         let mut buf = [0u8; 65536];
         let mut seq: u64 = 0;
@@ -88,13 +87,14 @@ pub fn start(app: AppHandle, bind_addr: String) -> Result<String, String> {
                         .map(|d| d.as_millis() as u64)
                         .unwrap_or(0);
                     let payload = json!({
+                        "bind": addr,
                         "from": src.to_string(),
                         "data": b64,
                         "seq": seq,
                         "ts_ms": ts_ms,
                         "dup": dup,
                     });
-                    println!("[udp] recv {} bytes from {}", n, src);
+                    println!("[udp:{}] recv {} bytes from {}", addr, n, src);
                     let _ = app_clone.emit("udp:message", payload);
                 }
                 Err(e) => {
@@ -102,7 +102,8 @@ pub fn start(app: AppHandle, bind_addr: String) -> Result<String, String> {
                     match e.kind() {
                         std::io::ErrorKind::WouldBlock | std::io::ErrorKind::TimedOut => {}
                         _ => {
-                            let payload = json!({"error": format!("recv error: {}", e)});
+                            let payload =
+                                json!({"error": format!("recv error: {}", e), "bind": addr});
                             let _ = app_clone.emit("udp:server:error", payload);
                         }
                     }
@@ -111,23 +112,36 @@ pub fn start(app: AppHandle, bind_addr: String) -> Result<String, String> {
         }
     });
 
-    *guard = Some(ServerHandle {
-        stop_tx: tx,
-        thread_handle: Some(handle),
-    });
+    guard.insert(
+        bind_addr.clone(),
+        ServerHandle {
+            stop_tx: tx,
+            thread_handle: Some(handle),
+            send_sock,
+        },
+    );
 
     Ok(format!("UDP server started on {}", bind_addr))
 }
 
-pub fn stop() -> Result<String, String> {
+pub fn stop(bind_addr: Option<String>) -> Result<String, String> {
     init_cell();
     let cell = UDP_SERVER.get().unwrap();
     let mut guard = cell.lock().map_err(|e| format!("lock error: {}", e))?;
-    if let Some(h) = guard.take() {
-        h.stop();
-        Ok("UDP server stopped".into())
+    if let Some(b) = bind_addr {
+        if let Some(h) = guard.remove(&b) {
+            h.stop();
+            Ok(format!("UDP server stopped on {}", b))
+        } else {
+            Err("UDP server not running for that address".into())
+        }
     } else {
-        Err("UDP server not running".into())
+        // stop all
+        let previous = std::mem::take(&mut *guard);
+        for (_k, h) in previous {
+            h.stop();
+        }
+        Ok("All UDP servers stopped".into())
     }
 }
 
@@ -145,5 +159,39 @@ pub fn send_to(to_addr: String, data_b64: String) -> Result<String, String> {
             Err(e) => Err(format!("send error: {}", e)),
         },
         Err(e) => Err(format!("bind error: {}", e)),
+    }
+}
+
+pub fn send_from(bind_addr: String, to_addr: String, data_b64: String) -> Result<String, String> {
+    // decode base64
+    let data = match base64::engine::general_purpose::STANDARD.decode(&data_b64) {
+        Ok(d) => d,
+        Err(e) => return Err(format!("base64 decode error: {}", e)),
+    };
+
+    init_cell();
+    let cell = UDP_SERVER.get().unwrap();
+
+    // Prefer sending from an existing running server socket (so the source port matches the listener)
+    if let Ok(guard) = cell.lock() {
+        if let Some(h) = guard.get(&bind_addr) {
+            return match h.send_sock.send_to(&data, &to_addr) {
+                Ok(n) => Ok(format!(
+                    "sent {} bytes to {} from {}",
+                    n, to_addr, bind_addr
+                )),
+                Err(e) => Err(format!("send error: {}", e)),
+            };
+        }
+    }
+
+    // Fallback: bind a temporary socket to bind_addr and send (only works if the port is free)
+    let sock = UdpSocket::bind(&bind_addr).map_err(|e| format!("bind error: {}", e))?;
+    match sock.send_to(&data, &to_addr) {
+        Ok(n) => Ok(format!(
+            "sent {} bytes to {} from {}",
+            n, to_addr, bind_addr
+        )),
+        Err(e) => Err(format!("send error: {}", e)),
     }
 }
