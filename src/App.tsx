@@ -68,6 +68,41 @@ function UDPServerView({ active }: { active: boolean }) {
 	const [repeatMs, setRepeatMs] = useState("1000");
 	const repeatRef = useRef<number | null>(null);
 
+	// histories for datalist dropdowns (persist in localStorage)
+	const [histories, setHistories] = useState<Record<string, string[]>>({});
+
+	useEffect(() => {
+		try {
+			const raw = localStorage.getItem("nd_histories");
+			if (raw) setHistories(JSON.parse(raw));
+		} catch (e) {
+			// ignore
+		}
+	}, []);
+
+	const saveHistories = (next: Record<string, string[]>) => {
+		try {
+			localStorage.setItem("nd_histories", JSON.stringify(next));
+		} catch (e) { }
+		setHistories(next);
+	};
+
+	const addHistory = (key: string, value: string) => {
+		if (!value) return;
+		const cleaned = value.trim();
+		if (!cleaned) return;
+		// use functional update to avoid stale closures and cap at 50 entries
+		setHistories((prev) => {
+			const prevList = prev[key] ?? [];
+			const next = [cleaned, ...prevList.filter((v) => v !== cleaned)].slice(0, 50);
+			const nextObj = { ...prev, [key]: next };
+			try {
+				localStorage.setItem("nd_histories", JSON.stringify(nextObj));
+			} catch (e) { }
+			return nextObj;
+		});
+	};
+
 	useEffect(() => {
 		return () => {
 			if (repeatRef.current != null) {
@@ -97,6 +132,9 @@ function UDPServerView({ active }: { active: boolean }) {
 			}
 			const b64 = btoa(String.fromCharCode(...bytes));
 			await invoke<string>("udp_send", { toAddr: sendTarget, dataB64: b64 });
+			// save to histories
+			addHistory("send_msg", sendMsg);
+			addHistory("send_target", sendTarget);
 			appendStatus(`sent ${bytes.length} bytes to ${sendTarget}`);
 		} catch (e) {
 			appendStatus(String(e));
@@ -329,6 +367,7 @@ function UDPServerView({ active }: { active: boolean }) {
 				<label>
 					<span className="form-label-text">IP:</span>
 					<input
+						list="hist-bind-ip"
 						placeholder="0.0.0.0"
 						pattern="^((25[0-5]|2[0-4]\\d|[01]?\\d?\\d)\\.){3}(25[0-5]|2[0-4]\\d|[01]?\\d?\\d)$"
 						title="请输入有效的 IPv4 地址"
@@ -345,14 +384,20 @@ function UDPServerView({ active }: { active: boolean }) {
 								appendStatus("IP 格式无效");
 								setStatus("IP 格式无效");
 							}
+							addHistory("bind_ip", ip);
 						}}
 						disabled={connected}
 						style={{ width: 150 }}
 					/>
+					<datalist id="hist-bind-ip">
+						{(histories["bind_ip"] ?? []).map((h) => (
+							<option key={h} value={h} />
+						))}
+					</datalist>
 				</label>
 				<label>
 					<span className="form-label-text">Port:</span>
-					<input
+					<input list="hist-bind-port"
 						placeholder="9000"
 						type="text"
 						inputMode="numeric"
@@ -368,10 +413,16 @@ function UDPServerView({ active }: { active: boolean }) {
 								appendStatus("Port 格式无效");
 								setStatus("Port 格式无效");
 							} else setStatus("");
+							addHistory("bind_port", port);
 						}}
 						disabled={connected}
 						style={{ width: 100 }}
 					/>
+					<datalist id="hist-bind-port">
+						{(histories["bind_port"] ?? []).map((h) => (
+							<option key={h} value={h} />
+						))}
+					</datalist>
 				</label>
 
 				<button type="button" onClick={toggleConnection} style={{ padding: "6px 12px" }}>
@@ -382,18 +433,31 @@ function UDPServerView({ active }: { active: boolean }) {
 			<div className="control-row send-row send-row-1">
 				<label className="field field-target">
 					<span className="form-label-text">目标:</span>
-					<input
+					<input list="hist-send-target"
 						placeholder="ip:port"
 						value={sendTarget}
 						onChange={(e) => setSendTarget(e.currentTarget.value)}
+						onBlur={() => addHistory("send_target", sendTarget)}
 					/>
+					<datalist id="hist-send-target">
+						{(histories["send_target"] ?? []).map((h) => (
+							<option key={h} value={h} />
+						))}
+					</datalist>
 				</label>
 				<label className="field field-interval">
-					<span className="form-label-text">间隔(ms):</span>
-					<input
+					<span className="form-label-text">间隔:</span>
+					<input list="hist-repeat-ms"
 						value={repeatMs}
 						onChange={(e) => setRepeatMs(e.currentTarget.value.replace(/[^0-9]/g, ""))}
+						onBlur={() => addHistory("repeat_ms", repeatMs)}
 					/>
+					<datalist id="hist-repeat-ms">
+						{(histories["repeat_ms"] ?? []).map((h) => (
+							<option key={h} value={h} />
+						))}
+					</datalist>
+					<span className="form-label-text">ms</span>
 				</label>
 
 				<div
@@ -437,11 +501,17 @@ function UDPServerView({ active }: { active: boolean }) {
 			<div className="control-row send-row send-row-2">
 				<label className="field field-message">
 					<span className="form-label-text">消息:</span>
-					<input
+					<input list="hist-send-msg"
 						placeholder="要发送的消息"
 						value={sendMsg}
 						onChange={(e) => setSendMsg(e.currentTarget.value)}
+						onBlur={() => addHistory("send_msg", sendMsg)}
 					/>
+					<datalist id="hist-send-msg">
+						{(histories["send_msg"] ?? []).map((h) => (
+							<option key={h} value={h} />
+						))}
+					</datalist>
 				</label>
 
 				<div className="send-group">
