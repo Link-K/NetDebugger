@@ -10,8 +10,305 @@ function useCounter(start = 0) {
 		return () => clearInterval(id);
 	}, []);
 	return count;
+
 }
 
+
+function ProgrammerCalculator({ onClose }: { onClose: () => void }) {
+	const [base, setBase] = useState<2 | 8 | 10 | 16>(16);
+	const [a, setA] = useState<string>("0");
+	const [b, setB] = useState<string>("");
+	const [pendingOp, setPendingOp] = useState<null | "+" | "-" | "*" | "/" | "AND" | "OR" | "XOR" | "SHL" | "SHR">(null);
+	const [highlight, setHighlight] = useState(false);
+	const aRef = useRef<HTMLInputElement | null>(null);
+	const bRef = useRef<HTMLInputElement | null>(null);
+	type InputTarget = "A" | "B";
+	const [editingTarget, setEditingTarget] = useState<InputTarget>("A");
+
+	const parseBigInt = (raw: string, radix: 2 | 8 | 10 | 16): bigint => {
+		const s = raw.trim();
+		if (s === "") return 0n;
+		const neg = s.startsWith("-");
+		const body = (neg ? s.slice(1) : s).replace(/^0+/, "") || "0";
+		const pref = radix === 16 ? "0x" : radix === 10 ? "" : radix === 2 ? "0b" : "0o";
+		const v = BigInt(pref + body);
+		return neg ? -v : v;
+	};
+
+	const safeParse = (raw: string, radix: 2 | 8 | 10 | 16): bigint => {
+		try {
+			return parseBigInt(raw, radix);
+		} catch {
+			return 0n;
+		}
+	};
+
+	const formatBigInt = (v: bigint, radix: 2 | 8 | 10 | 16) => {
+		const neg = v < 0n;
+		const abs = neg ? -v : v;
+		const s = abs.toString(radix).toUpperCase();
+		return neg ? `-${s}` : s;
+	};
+
+	const value = safeParse(a, base);
+
+	const activeTarget = (): InputTarget => editingTarget;
+
+	const allowedChar = (k: string, radix: 2 | 8 | 10 | 16) => {
+		const c = k.toUpperCase();
+		if (c === "-") return true;
+		if (/^[0-9]$/.test(c)) return Number(c) < radix;
+		if (/^[A-F]$/.test(c)) return radix === 16;
+		return false;
+	};
+
+	const append = (target: InputTarget, k: string) => {
+		const c = k.toUpperCase();
+		if (!allowedChar(c, base)) return;
+		if (target === "A") {
+			setA((prev) => (prev === "0" && c !== "-" ? c : prev + c));
+		} else {
+			setB((prev) => prev + c);
+		}
+	};
+
+	const backspace = (target: InputTarget) => {
+		if (target === "A") {
+			setA((prev) => {
+				const next = prev.slice(0, -1);
+				return next === "" || next === "-" ? "0" : next;
+			});
+		} else {
+			setB((prev) => prev.slice(0, -1));
+		}
+	};
+
+	const clearAll = () => {
+		setA("0");
+		setB("");
+		setPendingOp(null);
+		setEditingTarget("A");
+		setTimeout(() => aRef.current?.focus(), 0);
+	};
+
+	const computeBinary = (op: NonNullable<typeof pendingOp>, left: bigint, right: bigint) => {
+		switch (op) {
+			case "+": return left + right;
+			case "-": return left - right;
+			case "*": return left * right;
+			case "/": return right === 0n ? left : left / right;
+			case "AND": return left & right;
+			case "OR": return left | right;
+			case "XOR": return left ^ right;
+			case "SHL": return left << right;
+			case "SHR": return left >> right;
+		}
+	};
+
+	const setOp = (op: NonNullable<typeof pendingOp>) => {
+		// If we already have an op and a RHS, chain compute first.
+		if (pendingOp && b.trim() !== "") {
+			const left = safeParse(a, base);
+			const right = safeParse(b, base);
+			const res = computeBinary(pendingOp, left, right);
+			setA(formatBigInt(res, base));
+			setB("");
+			setPendingOp(op);
+			setEditingTarget("B");
+			setTimeout(() => bRef.current?.focus(), 0);
+			return;
+		}
+		setPendingOp(op);
+		setB("");
+		setEditingTarget("B");
+		setTimeout(() => bRef.current?.focus(), 0);
+	};
+
+	const equals = () => {
+		if (!pendingOp) return;
+		if (b.trim() === "") return;
+		const left = safeParse(a, base);
+		const right = safeParse(b, base);
+		const res = computeBinary(pendingOp, left, right);
+		setA(formatBigInt(res, base));
+		setB("");
+		setPendingOp(null);
+		setEditingTarget("A");
+		setHighlight(true);
+		setTimeout(() => setHighlight(false), 700);
+		setTimeout(() => aRef.current?.focus(), 0);
+	};
+
+	useEffect(() => {
+		const onKey = (e: KeyboardEvent) => {
+			if (e.key === "Escape") {
+				e.preventDefault();
+				onClose();
+				return;
+			}
+			if (e.key === "Enter") {
+				e.preventDefault();
+				equals();
+				return;
+			}
+			if (e.key === "Backspace") {
+				e.preventDefault();
+				backspace(activeTarget());
+				return;
+			}
+			if (e.key === "c" || e.key === "C") {
+				clearAll();
+				return;
+			}
+			if (e.key.length === 1) {
+				const k = e.key;
+				if (k === "+" || k === "-" || k === "*" || k === "/") {
+					setOp(k as any);
+					return;
+				}
+				append(activeTarget(), k);
+			}
+		};
+		document.addEventListener("keydown", onKey);
+		return () => document.removeEventListener("keydown", onKey);
+	}, [a, b, base, pendingOp, onClose]);
+
+	return (
+		<div className="programmer-calc new-layout">
+			{/* copy button moved to top-right */}
+			<button className="copy-top" onClick={() => navigator.clipboard?.writeText(formatBigInt(value, base))}>Copy</button>
+			<div className="pc-top">
+				<div className="pc-left-info">
+					<div className="info-row"><div>BIN</div><div className="mono">{formatBigInt(value, 2)}</div></div>
+					<div className="info-row"><div>OCT</div><div className="mono">{formatBigInt(value, 8)}</div></div>
+					<div className="info-row"><div>DEC</div><div className="mono">{formatBigInt(value, 10)}</div></div>
+					<div className="info-row"><div>HEX</div><div className="mono">{formatBigInt(value, 16)}</div></div>
+					{/* bits moved below (rendered next to left-info) */}
+				</div>
+				{/* bits are rendered above Pending (see below) */}
+
+				<div className="pc-display">
+					<div>
+						<div className="display-value">{formatBigInt(value, base)}</div>
+						<div className="pc-io-row">
+							<input
+								ref={aRef}
+								className="pc-input"
+								value={a}
+								onFocus={() => setEditingTarget("A")}
+								onChange={(e) => setA(e.target.value)}
+								placeholder="A"
+							/>
+							<input
+								ref={bRef}
+								id="pc-b"
+								className="pc-input"
+								value={b}
+								onFocus={() => setEditingTarget("B")}
+								onChange={(e) => setB(e.target.value)}
+								placeholder="B"
+							/>
+						</div>
+
+						{/* binary bits display row: show lower 32 bits of current A value */}
+
+						{highlight && <div className="pc-result-highlight" />}
+					</div>
+				</div>
+			</div>
+
+			<div className="pc-grid">
+				{/* horizontal 16-bit row (Win11-style) placed above the Pending row */}
+				<div className="pc-bits-wrap below-pending">
+					<div className="pc-bits" aria-hidden>
+						{(() => {
+							const mask = (1n << 16n) - 1n;
+							const u = value & mask;
+							const jsx: any[] = [];
+							for (let i = 15; i >= 0; i--) {
+								const bit = Number((u >> BigInt(i)) & 1n);
+								jsx.push(
+									<button
+										key={i}
+										className={"pc-bit chip" + (bit ? " on" : "")}
+										title={`bit ${i}`}
+										onClick={() => {
+											const mask = 1n << BigInt(i);
+											const curr = safeParse(a, base);
+											const next = curr ^ mask;
+											setA(formatBigInt(next, base));
+											setEditingTarget("A");
+											setTimeout(() => aRef.current?.focus(), 0);
+										}}
+									>
+										{bit}
+									</button>
+								);
+							}
+							return jsx;
+						})()}
+					</div>
+					<div className="pc-bit-labels pc-bit-labels-inline">
+						{(() => {
+							const labels: any[] = [];
+							for (let i = 15; i >= 0; i--) {
+								labels.push(
+									<span key={i} className="pc-bit-label">{[12, 8, 4, 0].includes(i) ? String(i) : ""}</span>
+								);
+							}
+							return labels;
+						})()}
+					</div>
+				</div>
+				<div className="pc-opbar">
+					<div className="mono">Pending: {pendingOp ?? "—"}</div>
+					{/* inline clear button placed to the right of Pending */}
+					<div className="pc-toolbar-buttons">
+						<button className={base === 2 ? "small-btn active" : "small-btn"} onClick={() => setBase(2)}>BIN</button>
+						<button className={base === 8 ? "small-btn active" : "small-btn"} onClick={() => setBase(8)}>OCT</button>
+						<button className={base === 10 ? "small-btn active" : "small-btn"} onClick={() => setBase(10)}>DEC</button>
+						<button className={base === 16 ? "small-btn active" : "small-btn"} onClick={() => setBase(16)}>HEX</button>
+					</div>
+					<div className="pc-clear-inline"><button className="big-clear inline" onClick={clearAll}>C</button></div>
+				</div>
+
+				<span style={{ margin: "auto" }} />
+
+				<div className="kp-hex-row">
+					{["A", "B", "C", "D", "E", "F"].map((k) => (
+						<button key={k} className="kp-hex-h" onClick={() => append(activeTarget(), k)}>{k}</button>
+					))}
+				</div>
+				<div className="kp-main-grid">
+					<div className="grid-row">
+						{["7", "8", "9"].map((k) => (
+							<button key={k} onClick={() => append(activeTarget(), k)}>{k}</button>
+						))}
+						<button onClick={() => setOp("/")}>/</button>
+					</div>
+					<div className="grid-row">
+						{["4", "5", "6"].map((k) => (
+							<button key={k} onClick={() => append(activeTarget(), k)}>{k}</button>
+						))}
+						<button onClick={() => setOp("*")}>*</button>
+					</div>
+					<div className="grid-row">
+						{["1", "2", "3"].map((k) => (
+							<button key={k} onClick={() => append(activeTarget(), k)}>{k}</button>
+						))}
+						<button onClick={() => setOp("-")}>-</button>
+					</div>
+					<div className="grid-row">
+						<button className="kp-zero" onClick={() => append(activeTarget(), "0")}>0</button>
+						<button onClick={() => backspace(activeTarget())}>←</button>
+						<button className="kp-eq" onClick={equals}>=</button>
+						<button onClick={() => setOp("+")}>+</button>
+					</div>
+				</div>
+			</div>
+		</div>
+	);
+}
 function UDPServerView({ active, commandsOpen, setCommandsOpen }: { active: boolean; commandsOpen: boolean; setCommandsOpen: (v: boolean) => void }) {
 	const editorRef = useRef<HTMLDivElement | null>(null);
 	const [html, setHtml] = useState("<p></p>");
@@ -63,8 +360,8 @@ function UDPServerView({ active, commandsOpen, setCommandsOpen }: { active: bool
 	const isConnected = (bind: string) => {
 		return connections.includes(bind);
 	};
-	const [status, setStatus] = useState("");
-	const [hideDup, setHideDup] = useState(true);
+	const [, setStatus] = useState("");
+	const [hideDup] = useState(true);
 
 	// send controls
 	const [sendTarget, setSendTarget] = useState("192.168.1.212:61206");
@@ -168,6 +465,12 @@ function UDPServerView({ active, commandsOpen, setCommandsOpen }: { active: bool
 		setCommandsOpen(false);
 	};
 
+	const removeCommand = (index: number) => {
+		if (!window.confirm("确定要移除该指令吗？")) return;
+		const next = commands.filter((_, i) => i !== index);
+		saveCommands(next);
+	};
+
 	useEffect(() => {
 		try {
 			const raw = localStorage.getItem("nd_histories");
@@ -176,13 +479,6 @@ function UDPServerView({ active, commandsOpen, setCommandsOpen }: { active: bool
 			// ignore
 		}
 	}, []);
-
-	const saveHistories = (next: Record<string, string[]>) => {
-		try {
-			localStorage.setItem("nd_histories", JSON.stringify(next));
-		} catch (e) { }
-		setHistories(next);
-	};
 
 	const addHistory = (key: string, value: string) => {
 		if (!value) return;
@@ -577,7 +873,14 @@ function UDPServerView({ active, commandsOpen, setCommandsOpen }: { active: bool
 									<td>{c.format.toUpperCase()}</td>
 									<td style={{ fontFamily: "monospace" }}>{c.data}</td>
 									<td>
-										<button onClick={() => applyCommand(c)}>应用</button>
+										<div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 0 }}>
+											<div style={{ display: "flex", gap: 8 }}>
+												<button onClick={() => applyCommand(c)}>应用</button>
+											</div>
+											<div>
+												<button onClick={() => removeCommand(idx)}>移除</button>
+											</div>
+										</div>
 									</td>
 								</tr>
 							))}
@@ -743,6 +1046,7 @@ function TCPClientView({ active }: { active: boolean }) {
 function App() {
 	const [sidebarOpen, setSidebarOpen] = useState(false);
 	const [commandsOpen, setCommandsOpen] = useState(false);
+	const [calcOpen, setCalcOpen] = useState(false);
 	const [active, setActive] = useState<"a" | "b" | "c" | "d">("a");
 
 	return (
@@ -755,14 +1059,42 @@ function App() {
 				☰
 			</button>
 
-			{/* commands icon - fixed, always visible like the sidebar toggle */}
-			<button className="commands-toggle" onClick={() => setCommandsOpen(true)} aria-label="指令集">
-				<svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
-					<rect x="2.5" y="4" width="19" height="16" rx="2" stroke="currentColor" strokeWidth="1.2" fill="none" />
-					<path d="M8 12l3-2-3-2" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" fill="none" />
-					<path d="M14 15h4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+			{/* calculator toggle (new) */}
+			<button className="calc-toggle" onClick={() => setCalcOpen((s) => !s)} aria-label="计算器">
+				<svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+					<rect x="3" y="3" width="18" height="18" rx="3" stroke="currentColor" strokeWidth={1.2} />
+					<path d="M7 7h10v3H7z" fill="currentColor" />
+					<path d="M8.5 15.5h1.5v1.5H8.5zM11 15.5h1.5v1.5H11zM13.5 15.5h1.5v1.5h-1.5zM8.5 12h1.5v1.5H8.5zM11 12h1.5v1.5H11zM13.5 12h1.5v1.5h-1.5z" fill="currentColor" />
 				</svg>
 			</button>
+
+			{/* commands icon - fixed, always visible like the sidebar toggle */}
+			<button className="commands-toggle" onClick={() => setCommandsOpen((s) => !s)} aria-label="指令集">
+				<svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+					<path d="M17.593 3.322c1.1.128 1.907 1.077 1.907 2.185V21L12 17.25 4.5 21V5.507c0-1.108.806-2.057 1.907-2.185a48.507 48.507 0 0 1 11.186 0Z" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
+				</svg>
+			</button>
+
+			{calcOpen && (
+				<div
+					className="calculator-overlay"
+					role="presentation"
+					onMouseDown={() => setCalcOpen(false)}
+				>
+					<div
+						className="calculator-panel"
+						role="dialog"
+						aria-label="程序员计算器"
+						onMouseDown={(e) => e.stopPropagation()}
+					>
+						<div className="calc-header">
+							<div className="calc-title">计算器</div>
+							<button className="calc-close" onClick={() => setCalcOpen(false)} aria-label="关闭">✕</button>
+						</div>
+						<ProgrammerCalculator onClose={() => setCalcOpen(false)} />
+					</div>
+				</div>
+			)}
 
 			<aside className={"sidebar" + (sidebarOpen ? " open" : "")}>
 				<div className="sidebar-inner">
@@ -792,9 +1124,9 @@ function App() {
 					</button>
 				</div>
 				<div className="sidebar-bottom">
-					<button className="commands-toggle" onClick={() => setCommandsOpen(true)} aria-label="指令集">
+					<button className="commands-toggle" onClick={() => setCommandsOpen((s) => !s)} aria-label="指令集">
 						<svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
-							<path d="M3 6h18M3 12h18M3 18h18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+							<path d="M17.593 3.322c1.1.128 1.907 1.077 1.907 2.185V21L12 17.25 4.5 21V5.507c0-1.108.806-2.057 1.907-2.185a48.507 48.507 0 0 1 11.186 0Z" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
 						</svg>
 					</button>
 				</div>
