@@ -4,6 +4,175 @@ import { listen } from "@tauri-apps/api/event";
 import "./App.css";
 
 
+type Command = {
+	name: string;
+	format: "ascii" | "hex";
+	data: string;
+};
+
+function CommandsSidebar({
+	open,
+	setOpen,
+	onApply,
+}: {
+	open: boolean;
+	setOpen: (v: boolean) => void;
+	onApply: (c: Command) => void;
+}) {
+	const [commands, setCommands] = useState<Command[]>([]);
+	const importInputRef = useRef<HTMLInputElement | null>(null);
+
+	useEffect(() => {
+		try {
+			const raw = localStorage.getItem("nd_commands");
+			if (raw) setCommands(JSON.parse(raw));
+			else {
+				setCommands([
+					{ name: "Ping ASCII", format: "ascii", data: "ping" },
+					{ name: "Status HEX", format: "hex", data: "01 02 03 04" },
+					{ name: "Hello", format: "ascii", data: "hello world" },
+				]);
+			}
+		} catch (e) {
+			// ignore
+		}
+	}, []);
+
+	const saveCommands = (next: Command[]) => {
+		try {
+			localStorage.setItem("nd_commands", JSON.stringify(next));
+		} catch (e) {
+			// ignore
+		}
+		setCommands(next);
+	};
+
+	const exportCommands = () => {
+		try {
+			const blob = new Blob([JSON.stringify(commands, null, 2)], { type: "application/json" });
+			const url = URL.createObjectURL(blob);
+			const a = document.createElement("a");
+			a.href = url;
+			a.download = "commands.json";
+			a.click();
+			URL.revokeObjectURL(url);
+		} catch (e) {
+			console.error(e);
+		}
+	};
+
+	const onImportChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+		const f = e.target.files && e.target.files[0];
+		if (!f) return;
+		const reader = new FileReader();
+		reader.onload = () => {
+			try {
+				const parsed = JSON.parse(String(reader.result || ""));
+				if (Array.isArray(parsed)) {
+					saveCommands(parsed as Command[]);
+				}
+			} catch (err) {
+				console.error(err);
+			}
+		};
+		reader.readAsText(f);
+		e.target.value = "";
+	};
+
+	const newCommand = () => {
+		const name = window.prompt("指令名称:");
+		if (!name) return;
+		let format = window.prompt("格式 (ascii 或 hex):", "ascii");
+		if (!format) return;
+		format = format.trim().toLowerCase();
+		if (format !== "ascii" && format !== "hex") {
+			alert("格式必须为 ascii 或 hex");
+			return;
+		}
+		const data = window.prompt("数据:");
+		if (data == null) return;
+		const c: Command = { name: name.trim(), format: format as any, data };
+		saveCommands([c, ...commands]);
+	};
+
+	const removeCommand = (index: number) => {
+		if (!window.confirm("确定要移除该指令吗？")) return;
+		const next = commands.filter((_, i) => i !== index);
+		saveCommands(next);
+	};
+
+	return (
+		<div className={"commands-sidebar" + (open ? " open" : "")}
+			aria-hidden={!open}
+		>
+			<div className="commands-header" style={{ position: "relative" }}>
+				<button className="commands-close" onClick={() => setOpen(false)} aria-label="close">
+					<svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+						<circle cx="12" cy="12" r="11" stroke="currentColor" strokeOpacity="0.06" fill="none" />
+						<path d="M10 8l4 4-4 4" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+					</svg>
+				</button>
+
+				<h3 style={{ margin: 0, textAlign: "center", width: "100%" }}>指令集</h3>
+
+				<span style={{ margin: 15 }}></span>
+
+				<div className="commands-actions">
+					<button onClick={() => importInputRef.current?.click()}>导入</button>
+					<button onClick={exportCommands}>导出</button>
+					<button onClick={newCommand}>新增</button>
+					<input
+						ref={importInputRef}
+						type="file"
+						accept="application/json"
+						style={{ display: "none" }}
+						onChange={onImportChange}
+					/>
+				</div>
+			</div>
+			<div className="commands-body">
+				<table className="commands-table" style={{ width: "100%", borderCollapse: "collapse" }}>
+					<thead>
+						<tr>
+							<th style={{ textAlign: "left" }}>名称</th>
+							<th style={{ textAlign: "left" }}>格式</th>
+							<th style={{ textAlign: "left" }}>数据</th>
+							<th style={{ textAlign: "left" }}>操作</th>
+						</tr>
+					</thead>
+					<tbody>
+						{commands.map((c, idx) => (
+							<tr key={idx}>
+								<td>{c.name}</td>
+								<td>{c.format.toUpperCase()}</td>
+								<td style={{ fontFamily: "monospace" }}>{c.data}</td>
+								<td>
+									<div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 0 }}>
+										<div style={{ display: "flex", gap: 8 }}>
+											<button
+												onClick={() => {
+													onApply(c);
+													setOpen(false);
+												}}
+											>
+												应用
+											</button>
+										</div>
+										<div>
+											<button onClick={() => removeCommand(idx)}>移除</button>
+										</div>
+									</div>
+								</td>
+							</tr>
+						))}
+					</tbody>
+				</table>
+			</div>
+		</div>
+	);
+}
+
+
 
 function ProgrammerCalculator({ onClose }: { onClose: () => void }) {
 	const [base, setBase] = useState<2 | 8 | 10 | 16>(16);
@@ -300,7 +469,7 @@ function ProgrammerCalculator({ onClose }: { onClose: () => void }) {
 		</div>
 	);
 }
-function UDPServerView({ active, commandsOpen, setCommandsOpen }: { active: boolean; commandsOpen: boolean; setCommandsOpen: (v: boolean) => void }) {
+function UDPServerView({ active }: { active: boolean }) {
 	const editorRef = useRef<HTMLDivElement | null>(null);
 	const [html, setHtml] = useState("<p></p>");
 
@@ -365,103 +534,6 @@ function UDPServerView({ active, commandsOpen, setCommandsOpen }: { active: bool
 	// histories for datalist dropdowns (persist in localStorage)
 	const [histories, setHistories] = useState<Record<string, string[]>>({});
 
-	// command set (右侧侧边栏)
-	interface Command {
-		name: string;
-		format: "ascii" | "hex";
-		data: string;
-	}
-
-	const [commands, setCommands] = useState<Command[]>([]);
-
-	const importInputRef = useRef<HTMLInputElement | null>(null);
-
-	useEffect(() => {
-		try {
-			const raw = localStorage.getItem("nd_commands");
-			if (raw) setCommands(JSON.parse(raw));
-			else {
-				// default sample commands
-				setCommands([
-					{ name: "Ping ASCII", format: "ascii", data: "ping" },
-					{ name: "Status HEX", format: "hex", data: "01 02 03 04" },
-					{ name: "Hello", format: "ascii", data: "hello world" },
-				]);
-			}
-		} catch (e) { }
-	}, []);
-
-	const saveCommands = (next: Command[]) => {
-		try {
-			localStorage.setItem("nd_commands", JSON.stringify(next));
-		} catch (e) { }
-		setCommands(next);
-	};
-
-	const exportCommands = () => {
-		try {
-			const blob = new Blob([JSON.stringify(commands, null, 2)], { type: "application/json" });
-			const url = URL.createObjectURL(blob);
-			const a = document.createElement("a");
-			a.href = url;
-			a.download = "commands.json";
-			a.click();
-			URL.revokeObjectURL(url);
-		} catch (e) {
-			console.error(e);
-		}
-	};
-
-	const onImportChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-		const f = e.target.files && e.target.files[0];
-		if (!f) return;
-		const reader = new FileReader();
-		reader.onload = () => {
-			try {
-				const parsed = JSON.parse(String(reader.result || ""));
-				if (Array.isArray(parsed)) {
-					saveCommands(parsed as Command[]);
-				}
-			} catch (err) {
-				console.error(err);
-			}
-		};
-		reader.readAsText(f);
-		// clear value to allow re-import same file
-		e.target.value = "";
-	};
-
-	const newCommand = () => {
-		const name = window.prompt("指令名称:");
-		if (!name) return;
-		let format = window.prompt("格式 (ascii 或 hex):", "ascii");
-		if (!format) return;
-		format = format.trim().toLowerCase();
-		if (format !== "ascii" && format !== "hex") {
-			alert("格式必须为 ascii 或 hex");
-			return;
-		}
-		const data = window.prompt("数据:");
-		if (data == null) return;
-		const c: Command = { name: name.trim(), format: format as any, data };
-		saveCommands([c, ...commands]);
-	};
-
-	const applyCommand = (c: Command) => {
-		setSendModeLocal(c.format);
-		setSendMsg(c.data);
-		addHistory("send_msg", c.data);
-		addHistory("send_target", sendTarget);
-		// close sidebar
-		setCommandsOpen(false);
-	};
-
-	const removeCommand = (index: number) => {
-		if (!window.confirm("确定要移除该指令吗？")) return;
-		const next = commands.filter((_, i) => i !== index);
-		saveCommands(next);
-	};
-
 	useEffect(() => {
 		try {
 			const raw = localStorage.getItem("nd_histories");
@@ -486,6 +558,21 @@ function UDPServerView({ active, commandsOpen, setCommandsOpen }: { active: bool
 			return nextObj;
 		});
 	};
+
+	useEffect(() => {
+		const handler = (ev: Event) => {
+			const detail = (ev as CustomEvent).detail as any;
+			if (!detail || detail.target !== "a") return;
+			const c = detail.command as Command;
+			if (!c) return;
+			setSendModeLocal(c.format);
+			setSendMsg(c.data);
+			addHistory("send_msg", c.data);
+			addHistory("send_target", sendTarget);
+		};
+		window.addEventListener("nd:applyCommand", handler as any);
+		return () => window.removeEventListener("nd:applyCommand", handler as any);
+	}, [sendTarget]);
 
 	useEffect(() => {
 		return () => {
@@ -826,60 +913,6 @@ function UDPServerView({ active, commandsOpen, setCommandsOpen }: { active: bool
 				</button>
 			</div>
 
-			{/* commands sidebar */}
-			<div className={"commands-sidebar" + (commandsOpen ? " open" : "")}>
-				<div className="commands-header" style={{ position: "relative" }}>
-					<button className="commands-close" onClick={() => setCommandsOpen(false)} aria-label="close">
-						<svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
-							<circle cx="12" cy="12" r="11" stroke="currentColor" strokeOpacity="0.06" fill="none" />
-							<path d="M10 8l4 4-4 4" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-						</svg>
-					</button>
-
-					<h3 style={{ margin: 0, textAlign: "center", width: "100%" }}>指令集</h3>
-
-					<span style={{ margin: 15 }}></span>
-
-					<div className="commands-actions">
-						<button onClick={() => importInputRef.current?.click()}>导入</button>
-						<button onClick={exportCommands}>导出</button>
-						<button onClick={newCommand}>新增</button>
-						<input ref={importInputRef} type="file" accept="application/json" style={{ display: "none" }} onChange={onImportChange} />
-					</div>
-				</div>
-				<div className="commands-body">
-					<table className="commands-table" style={{ width: "100%", borderCollapse: "collapse" }}>
-						<thead>
-							<tr>
-								<th style={{ textAlign: "left" }}>名称</th>
-								<th style={{ textAlign: "left" }}>格式</th>
-								<th style={{ textAlign: "left" }}>数据</th>
-								<th style={{ textAlign: "left" }}>操作</th>
-							</tr>
-						</thead>
-						<tbody>
-							{commands.map((c, idx) => (
-								<tr key={idx}>
-									<td>{c.name}</td>
-									<td>{c.format.toUpperCase()}</td>
-									<td style={{ fontFamily: "monospace" }}>{c.data}</td>
-									<td>
-										<div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 0 }}>
-											<div style={{ display: "flex", gap: 8 }}>
-												<button onClick={() => applyCommand(c)}>应用</button>
-											</div>
-											<div>
-												<button onClick={() => removeCommand(idx)}>移除</button>
-											</div>
-										</div>
-									</td>
-								</tr>
-							))}
-						</tbody>
-					</table>
-				</div>
-			</div>
-
 			<div className="control-row send-row send-row-1">
 				<label className="field field-target">
 					<span className="form-label-text">目标:</span>
@@ -1063,6 +1096,21 @@ function UDPClientView({ active }: { active: boolean }) {
 			return nextObj;
 		});
 	};
+
+	useEffect(() => {
+		const handler = (ev: Event) => {
+			const detail = (ev as CustomEvent).detail as any;
+			if (!detail || detail.target !== "b") return;
+			const c = detail.command as Command;
+			if (!c) return;
+			setSendMode(c.format);
+			setSendMsg(c.data);
+			addHistory("send_msg", c.data);
+			addHistory("send_target", sendTarget);
+		};
+		window.addEventListener("nd:applyCommand", handler as any);
+		return () => window.removeEventListener("nd:applyCommand", handler as any);
+	}, [sendTarget]);
 
 	const parseHex = (s: string) => {
 		const cleaned = s.replace(/[^0-9a-fA-F]/g, "");
@@ -1325,6 +1373,20 @@ function TCPServerView({ active }: { active: boolean }) {
 			return nextObj;
 		});
 	};
+
+	useEffect(() => {
+		const handler = (ev: Event) => {
+			const detail = (ev as CustomEvent).detail as any;
+			if (!detail || detail.target !== "c") return;
+			const c = detail.command as Command;
+			if (!c) return;
+			setSendMode(c.format);
+			setSendMsg(c.data);
+			addHistory("send_msg", c.data);
+		};
+		window.addEventListener("nd:applyCommand", handler as any);
+		return () => window.removeEventListener("nd:applyCommand", handler as any);
+	}, []);
 
 	const parseHex = (s: string) => {
 		const cleaned = s.replace(/[^0-9a-fA-F]/g, "");
@@ -1591,6 +1653,20 @@ function TCPClientView({ active }: { active: boolean }) {
 		});
 	};
 
+	useEffect(() => {
+		const handler = (ev: Event) => {
+			const detail = (ev as CustomEvent).detail as any;
+			if (!detail || detail.target !== "d") return;
+			const c = detail.command as Command;
+			if (!c) return;
+			setSendMode(c.format);
+			setSendMsg(c.data);
+			addHistory("send_msg", c.data);
+		};
+		window.addEventListener("nd:applyCommand", handler as any);
+		return () => window.removeEventListener("nd:applyCommand", handler as any);
+	}, []);
+
 	const parseHex = (s: string) => {
 		const cleaned = s.replace(/[^0-9a-fA-F]/g, "");
 		if (cleaned.length % 2 !== 0) throw new Error("hex length must be even");
@@ -1783,6 +1859,14 @@ function App() {
 	const [calcOpen, setCalcOpen] = useState(false);
 	const [active, setActive] = useState<"a" | "b" | "c" | "d">("a");
 
+	const applyCommandToActiveView = (c: Command) => {
+		window.dispatchEvent(
+			new CustomEvent("nd:applyCommand", {
+				detail: { target: active, command: c },
+			})
+		);
+	};
+
 	return (
 		<div className="app-root">
 			<button
@@ -1866,9 +1950,11 @@ function App() {
 				</div>
 			</aside>
 
+			<CommandsSidebar open={commandsOpen} setOpen={setCommandsOpen} onApply={applyCommandToActiveView} />
+
 			<main className={"content" + (sidebarOpen ? " shift" : "")}>
 				<section className="views">
-					<UDPServerView active={active === "a"} commandsOpen={commandsOpen} setCommandsOpen={setCommandsOpen} />
+					<UDPServerView active={active === "a"} />
 					<UDPClientView active={active === "b"} />
 					<TCPServerView active={active === "c"} />
 					<TCPClientView active={active === "d"} />
