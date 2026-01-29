@@ -2,12 +2,16 @@ import { useState, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import "./App.css";
+import packageJson from "../package.json";
+import tauriConf from "../src-tauri/tauri.conf.json";
 
 type Command = {
   name: string;
   format: "ascii" | "hex";
   data: string;
 };
+
+const appVersion = tauriConf?.version ?? packageJson?.version ?? "unknown";
 
 function CommandsSidebar({
   open,
@@ -1167,7 +1171,7 @@ function UDPServerView({ active }: { active: boolean }) {
               } else setStatus("");
               addHistory("bind_port", port);
             }}
-            style={{ width: 100 }}
+            style={{ width: 120 }}
           />
           <datalist id="hist-bind-port">
             {(histories["bind_port"] ?? []).map((h) => (
@@ -1179,7 +1183,7 @@ function UDPServerView({ active }: { active: boolean }) {
         <button
           type="button"
           onClick={toggleConnection}
-          style={{ padding: "6px 12px" }}
+          style={{ padding: "6px 12px", marginLeft: "auto" }}
         >
           {isConnected(currentBind) ? "断开" : "连接"}
         </button>
@@ -1706,7 +1710,7 @@ function UDPClientView({ active }: { active: boolean }) {
           onClick={toggleConnection}
           style={{ marginLeft: 8 }}
         >
-          {isConnected(currentBind) ? "断开" : "绑定"}
+          {isConnected(currentBind) ? "断开" : "连接"}
         </button>
       </div>
 
@@ -1776,7 +1780,7 @@ function UDPClientView({ active }: { active: boolean }) {
 
       {connections.length > 0 && (
         <div className="connections-box">
-          <div className="connections-header">已绑定</div>
+          <div className="connections-header">已连接</div>
           <ul className="connections-list">
             {connections.map((c) => (
               <li
@@ -2182,7 +2186,7 @@ function TCPServerView({ active }: { active: boolean }) {
           />
         </label>
         <button type="button" onClick={toggleServer} style={{ marginLeft: 8 }}>
-          启动/停止
+          连接
         </button>
       </div>
 
@@ -2742,6 +2746,7 @@ function App() {
   const [calcMode, setCalcMode] = useState<"programmer" | "scientific">(
     "programmer",
   );
+  const [aboutOpen, setAboutOpen] = useState(false);
   const [active, setActive] = useState<"a" | "b" | "c" | "d">("a");
 
   const applyCommandToActiveView = (c: Command) => {
@@ -2817,6 +2822,37 @@ function App() {
         </svg>
       </button>
 
+      {/* about toggle (bottom-right, calculator-style) */}
+      <button
+        className="about-toggle"
+        onClick={() => setAboutOpen(true)}
+        aria-label="关于"
+      >
+        <svg
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+          aria-hidden
+        >
+          <circle
+            cx="12"
+            cy="12"
+            r="9"
+            stroke="currentColor"
+            strokeWidth={1.6}
+          />
+          <path
+            d="M12 10.5v6"
+            stroke="currentColor"
+            strokeWidth={1.6}
+            strokeLinecap="round"
+          />
+          <circle cx="12" cy="7.5" r="1" fill="currentColor" />
+        </svg>
+      </button>
+
       {calcOpen && (
         <div
           className="calculator-overlay"
@@ -2864,6 +2900,138 @@ function App() {
             ) : (
               <ScientificCalculator onClose={() => setCalcOpen(false)} />
             )}
+          </div>
+        </div>
+      )}
+
+      {aboutOpen && (
+        <div
+          className="calculator-overlay"
+          role="presentation"
+          onMouseDown={() => setAboutOpen(false)}
+        >
+          <div
+            className="calculator-panel about-panel"
+            role="dialog"
+            aria-label="关于"
+            onMouseDown={(e) => e.stopPropagation()}
+            style={{ width: "min(520px, calc(100% - 96px))" }}
+          >
+            <div className="calc-header">
+              <div className="calc-title">关于</div>
+              <button
+                className="calc-close"
+                onClick={() => setAboutOpen(false)}
+                aria-label="关闭"
+              >
+                ✕
+              </button>
+            </div>
+            <div style={{ padding: "12px 16px", color: "#e0e0e0" }}>
+              <div
+                style={{
+                  display: "flex",
+                  gap: 12,
+                  alignItems: "center",
+                  marginBottom: 10,
+                }}
+              >
+                <div
+                  style={{
+                    width: 36,
+                    height: 36,
+                    borderRadius: 10,
+                    background: "rgba(255,255,255,0.06)",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontWeight: 700,
+                    letterSpacing: 1,
+                  }}
+                >
+                  ND
+                </div>
+                <div>
+                  <div
+                    style={{ fontSize: 20, fontWeight: 700, lineHeight: 1.2 }}
+                  >
+                    NetDebugger
+                  </div>
+                  <div style={{ fontSize: 12, opacity: 0.7 }}>
+                    版本 v{appVersion} · Tauri + React
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ lineHeight: 1.6, opacity: 0.9, marginBottom: 12 }}>
+                轻量级网络调试工具，聚焦 UDP/TCP 报文收发、快速验证与日常联调。
+              </div>
+
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr 1fr",
+                  gap: 8,
+                  marginBottom: 12,
+                }}
+              >
+                <div
+                  style={{
+                    background: "rgba(255,255,255,0.04)",
+                    borderRadius: 10,
+                    padding: "10px 12px",
+                  }}
+                >
+                  <div style={{ fontSize: 12, opacity: 0.75, marginBottom: 6 }}>
+                    核心功能
+                  </div>
+                  <ul style={{ margin: 0, paddingLeft: 18, lineHeight: 1.6 }}>
+                    <li>UDP/TCP Server/Client 收发</li>
+                    <li>指令集管理与快速应用</li>
+                    <li>程序员计算器（进制/位运算）</li>
+                  </ul>
+                </div>
+
+                <div
+                  style={{
+                    background: "rgba(255,255,255,0.04)",
+                    borderRadius: 10,
+                    padding: "10px 12px",
+                  }}
+                >
+                  <div style={{ fontSize: 12, opacity: 0.75, marginBottom: 6 }}>
+                    作者与版本
+                  </div>
+                  <div style={{ lineHeight: 1.6 }}>
+                    <div>作者：Link-K</div>
+                    <div>版本：v{appVersion}</div>
+                    <div>
+                      开源地址：
+                      <a
+                        href="https://github.com/Link-K/NetDebugger"
+                        target="_blank"
+                        rel="noreferrer"
+                        style={{ color: "#7cc7ff", textDecoration: "none" }}
+                      >
+                        github.com/Link-K/NetDebugger
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  fontSize: 12,
+                  opacity: 0.6,
+                }}
+              >
+                <span>© 2026 NetDebugger</span>
+                <span>Build: local</span>
+              </div>
+            </div>
           </div>
         </div>
       )}
