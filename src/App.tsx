@@ -583,6 +583,152 @@ function ProgrammerCalculator({ onClose }: { onClose: () => void }) {
     </div>
   );
 }
+
+function ScientificCalculator({ onClose }: { onClose: () => void }) {
+  const [display, setDisplay] = useState("0");
+  const [memory, setMemory] = useState<number | null>(null);
+  const [pendingOp, setPendingOp] = useState<
+    null | "+" | "-" | "*" | "/" | "^"
+  >(null);
+
+  const inputDigit = (d: string) => {
+    setDisplay((prev) => (prev === "0" ? d : prev + d));
+  };
+
+  const clearAll = () => {
+    setDisplay("0");
+    setMemory(null);
+    setPendingOp(null);
+  };
+
+  const applyUnary = (fn: (v: number) => number) => {
+    const v = Number(display);
+    if (Number.isNaN(v)) return;
+    setDisplay(String(fn(v)));
+  };
+
+  const setOp = (op: NonNullable<typeof pendingOp>) => {
+    const v = Number(display);
+    if (Number.isNaN(v)) return;
+    setMemory(v);
+    setPendingOp(op);
+    setDisplay("0");
+  };
+
+  const equals = () => {
+    if (pendingOp == null || memory == null) return;
+    const v = Number(display);
+    if (Number.isNaN(v)) return;
+    let res = memory;
+    switch (pendingOp) {
+      case "+":
+        res = memory + v;
+        break;
+      case "-":
+        res = memory - v;
+        break;
+      case "*":
+        res = memory * v;
+        break;
+      case "/":
+        res = v === 0 ? memory : memory / v;
+        break;
+      case "^":
+        res = Math.pow(memory, v);
+        break;
+    }
+    setDisplay(String(res));
+    setMemory(null);
+    setPendingOp(null);
+  };
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        onClose();
+        return;
+      }
+      if (e.key === "Enter") {
+        e.preventDefault();
+        equals();
+        return;
+      }
+      if (e.key === "Backspace") {
+        e.preventDefault();
+        setDisplay((prev) => (prev.length <= 1 ? "0" : prev.slice(0, -1)));
+        return;
+      }
+      if (/^[0-9]$/.test(e.key)) {
+        inputDigit(e.key);
+        return;
+      }
+      if (["+", "-", "*", "/"].includes(e.key)) {
+        setOp(e.key as any);
+        return;
+      }
+      if (e.key === ".") {
+        setDisplay((prev) => (prev.includes(".") ? prev : prev + "."));
+      }
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [display, pendingOp, memory, onClose]);
+
+  return (
+    <div className="scientific-calc">
+      <div className="sc-display">{display}</div>
+      <div className="sc-row">
+        <button onClick={clearAll}>AC</button>
+        <button onClick={() => applyUnary((v) => Math.sqrt(v))}>√</button>
+        <button onClick={() => applyUnary((v) => v * v)}>x²</button>
+        <button onClick={() => setOp("^")}>^</button>
+      </div>
+      <div className="sc-row">
+        <button onClick={() => applyUnary((v) => Math.sin(v))}>sin</button>
+        <button onClick={() => applyUnary((v) => Math.cos(v))}>cos</button>
+        <button onClick={() => applyUnary((v) => Math.tan(v))}>tan</button>
+        <button onClick={() => setOp("/")}>/</button>
+      </div>
+      <div className="sc-row">
+        {["7", "8", "9"].map((d) => (
+          <button key={d} onClick={() => inputDigit(d)}>
+            {d}
+          </button>
+        ))}
+        <button onClick={() => setOp("*")}>*</button>
+      </div>
+      <div className="sc-row">
+        {["4", "5", "6"].map((d) => (
+          <button key={d} onClick={() => inputDigit(d)}>
+            {d}
+          </button>
+        ))}
+        <button onClick={() => setOp("-")}>-</button>
+      </div>
+      <div className="sc-row">
+        {["1", "2", "3"].map((d) => (
+          <button key={d} onClick={() => inputDigit(d)}>
+            {d}
+          </button>
+        ))}
+        <button onClick={() => setOp("+")}>+</button>
+      </div>
+      <div className="sc-row">
+        <button onClick={() => inputDigit("0")}>0</button>
+        <button
+          onClick={() =>
+            setDisplay((prev) => (prev.includes(".") ? prev : prev + "."))
+          }
+        >
+          .
+        </button>
+        <button onClick={equals}>=</button>
+      </div>
+    </div>
+  );
+}
+
 function UDPServerView({ active }: { active: boolean }) {
   const editorRef = useRef<HTMLDivElement | null>(null);
   const [html, setHtml] = useState("<p></p>");
@@ -617,7 +763,7 @@ function UDPServerView({ active }: { active: boolean }) {
       .toUpperCase();
   };
 
-  const [ip, setIp] = useState("192.168.1.212");
+  const [ip, setIp] = useState("192.168.1.119");
   const [port, setPort] = useState("61206");
   const ipRegex =
     /^((25[0-5]|2[0-4]\d|[01]?\d?\d)\.){3}(25[0-5]|2[0-4]\d|[01]?\d?\d)$/;
@@ -2515,6 +2661,9 @@ function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [commandsOpen, setCommandsOpen] = useState(false);
   const [calcOpen, setCalcOpen] = useState(false);
+  const [calcMode, setCalcMode] = useState<"programmer" | "scientific">(
+    "programmer",
+  );
   const [active, setActive] = useState<"a" | "b" | "c" | "d">("a");
 
   const applyCommandToActiveView = (c: Command) => {
@@ -2599,11 +2748,31 @@ function App() {
           <div
             className="calculator-panel"
             role="dialog"
-            aria-label="程序员计算器"
+            aria-label="计算器"
             onMouseDown={(e) => e.stopPropagation()}
           >
             <div className="calc-header">
               <div className="calc-title">计算器</div>
+              <div className="calc-modes">
+                <button
+                  className={
+                    calcMode === "programmer" ? "mode-btn active" : "mode-btn"
+                  }
+                  aria-pressed={calcMode === "programmer"}
+                  onClick={() => setCalcMode("programmer")}
+                >
+                  程序员
+                </button>
+                <button
+                  className={
+                    calcMode === "scientific" ? "mode-btn active" : "mode-btn"
+                  }
+                  aria-pressed={calcMode === "scientific"}
+                  onClick={() => setCalcMode("scientific")}
+                >
+                  科学
+                </button>
+              </div>
               <button
                 className="calc-close"
                 onClick={() => setCalcOpen(false)}
@@ -2612,7 +2781,11 @@ function App() {
                 ✕
               </button>
             </div>
-            <ProgrammerCalculator onClose={() => setCalcOpen(false)} />
+            {calcMode === "programmer" ? (
+              <ProgrammerCalculator onClose={() => setCalcOpen(false)} />
+            ) : (
+              <ScientificCalculator onClose={() => setCalcOpen(false)} />
+            )}
           </div>
         </div>
       )}
