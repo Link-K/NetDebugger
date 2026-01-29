@@ -211,7 +211,7 @@ function CommandsSidebar({
 }
 
 function ProgrammerCalculator({ onClose }: { onClose: () => void }) {
-  const [base, setBase] = useState<2 | 8 | 10 | 16>(16);
+  const [base, setBase] = useState<2 | 8 | 10 | 16>(10);
   const [a, setA] = useState<string>("0");
   const [b, setB] = useState<string>("");
   const [pendingOp, setPendingOp] = useState<
@@ -399,19 +399,43 @@ function ProgrammerCalculator({ onClose }: { onClose: () => void }) {
       <div className="pc-top">
         <div className="pc-left-info">
           <div className="info-row">
-            <div>BIN</div>
+            <button
+              className={base === 2 ? "small-btn active" : "small-btn"}
+              aria-pressed={base === 2}
+              onClick={() => setBase(2)}
+            >
+              BIN
+            </button>
             <div className="mono">{formatBigInt(value, 2)}</div>
           </div>
           <div className="info-row">
-            <div>OCT</div>
+            <button
+              className={base === 8 ? "small-btn active" : "small-btn"}
+              aria-pressed={base === 8}
+              onClick={() => setBase(8)}
+            >
+              OCT
+            </button>
             <div className="mono">{formatBigInt(value, 8)}</div>
           </div>
           <div className="info-row">
-            <div>DEC</div>
+            <button
+              className={base === 10 ? "small-btn active" : "small-btn"}
+              aria-pressed={base === 10}
+              onClick={() => setBase(10)}
+            >
+              DEC
+            </button>
             <div className="mono">{formatBigInt(value, 10)}</div>
           </div>
           <div className="info-row">
-            <div>HEX</div>
+            <button
+              className={base === 16 ? "small-btn active" : "small-btn"}
+              aria-pressed={base === 16}
+              onClick={() => setBase(16)}
+            >
+              HEX
+            </button>
             <div className="mono">{formatBigInt(value, 16)}</div>
           </div>
           {/* bits moved below (rendered next to left-info) */}
@@ -496,32 +520,6 @@ function ProgrammerCalculator({ onClose }: { onClose: () => void }) {
         <div className="pc-opbar">
           <div className="mono">Pending: {pendingOp ?? "—"}</div>
           {/* inline clear button placed to the right of Pending */}
-          <div className="pc-toolbar-buttons">
-            <button
-              className={base === 2 ? "small-btn active" : "small-btn"}
-              onClick={() => setBase(2)}
-            >
-              BIN
-            </button>
-            <button
-              className={base === 8 ? "small-btn active" : "small-btn"}
-              onClick={() => setBase(8)}
-            >
-              OCT
-            </button>
-            <button
-              className={base === 10 ? "small-btn active" : "small-btn"}
-              onClick={() => setBase(10)}
-            >
-              DEC
-            </button>
-            <button
-              className={base === 16 ? "small-btn active" : "small-btn"}
-              onClick={() => setBase(16)}
-            >
-              HEX
-            </button>
-          </div>
           <div className="pc-clear-inline">
             <button className="big-clear inline" onClick={clearAll}>
               C
