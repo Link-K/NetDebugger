@@ -1110,30 +1110,6 @@ function UDPServerView({ active }: { active: boolean }) {
               userSelect: "none",
             }}
           >
-            <div
-              style={{
-                width: 44,
-                height: 24,
-                borderRadius: 16,
-                background: displayMode === "hex" ? "#4caf50" : "#000000",
-                padding: 3,
-                boxSizing: "border-box",
-                position: "relative",
-              }}
-            >
-              <div
-                style={{
-                  width: 18,
-                  height: 18,
-                  borderRadius: 9,
-                  background: "#fff",
-                  position: "absolute",
-                  left: displayMode === "hex" ? 23 : 3,
-                  transition: "left 0.12s ease",
-                  boxShadow: "0 1px 2px rgba(0,0,0,0.2)",
-                }}
-              />
-            </div>
             <span style={{ fontSize: 12 }}>
               {displayMode === "hex" ? "HEX" : "ASCII"}
             </span>
@@ -1410,6 +1386,12 @@ function UDPClientView({ active }: { active: boolean }) {
     setHtml(editorRef.current.innerHTML);
   };
 
+  const [displayMode, setDisplayMode] = useState<"ascii" | "hex">("ascii");
+  const displayModeRef = useRef(displayMode);
+  useEffect(() => {
+    displayModeRef.current = displayMode;
+  }, [displayMode]);
+
   const bytesToHex = (bytes: Uint8Array) => {
     return Array.from(bytes)
       .map((b) => b.toString(16).padStart(2, "0"))
@@ -1508,15 +1490,24 @@ function UDPClientView({ active }: { active: boolean }) {
 
           let text = "";
           let isHexShown = false;
-          try {
-            text = new TextDecoder().decode(bytes);
-            if (text.includes("\uFFFD") || /[\x00-\x08\x0E-\x1F]/.test(text)) {
+          const mode = displayModeRef.current;
+          if (mode === "hex") {
+            text = bytesToHex(bytes);
+            isHexShown = true;
+          } else {
+            try {
+              text = new TextDecoder().decode(bytes);
+              if (
+                text.includes("\uFFFD") ||
+                /[\x00-\x08\x0E-\x1F]/.test(text)
+              ) {
+                text = bytesToHex(bytes);
+                isHexShown = true;
+              }
+            } catch (err) {
               text = bytesToHex(bytes);
               isHexShown = true;
             }
-          } catch (err) {
-            text = bytesToHex(bytes);
-            isHexShown = true;
           }
 
           const contentHtml = isHexShown
@@ -1666,6 +1657,27 @@ function UDPClientView({ active }: { active: boolean }) {
         >
           复制消息
         </button>
+
+        <div className="toolbar-switch">
+          <div
+            role="switch"
+            aria-checked={displayMode === "hex"}
+            onClick={() =>
+              setDisplayMode((m) => (m === "ascii" ? "hex" : "ascii"))
+            }
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 8,
+              cursor: "pointer",
+              userSelect: "none",
+            }}
+          >
+            <span style={{ fontSize: 12 }}>
+              {displayMode === "hex" ? "HEX" : "ASCII"}
+            </span>
+          </div>
+        </div>
 
         <label style={{ marginLeft: 12 }}>
           <span className="form-label-text">IP:</span>
@@ -1847,6 +1859,12 @@ function TCPServerView({ active }: { active: boolean }) {
     setHtml(editorRef.current.innerHTML);
   };
 
+  const [displayMode, setDisplayMode] = useState<"ascii" | "hex">("ascii");
+  const displayModeRef = useRef(displayMode);
+  useEffect(() => {
+    displayModeRef.current = displayMode;
+  }, [displayMode]);
+
   const bytesToHex = (bytes: Uint8Array) => {
     return Array.from(bytes)
       .map((b) => b.toString(16).padStart(2, "0"))
@@ -1948,15 +1966,21 @@ function TCPServerView({ active }: { active: boolean }) {
 
         let text = "";
         let isHexShown = false;
-        try {
-          text = new TextDecoder().decode(bytes);
-          if (text.includes("\uFFFD") || /[\x00-\x08\x0E-\x1F]/.test(text)) {
+        const mode = displayModeRef.current;
+        if (mode === "hex") {
+          text = bytesToHex(bytes);
+          isHexShown = true;
+        } else {
+          try {
+            text = new TextDecoder().decode(bytes);
+            if (text.includes("\uFFFD") || /[\x00-\x08\x0E-\x1F]/.test(text)) {
+              text = bytesToHex(bytes);
+              isHexShown = true;
+            }
+          } catch (err) {
             text = bytesToHex(bytes);
             isHexShown = true;
           }
-        } catch (err) {
-          text = bytesToHex(bytes);
-          isHexShown = true;
         }
 
         const contentHtml = isHexShown
@@ -2113,6 +2137,27 @@ function TCPServerView({ active }: { active: boolean }) {
         >
           复制消息
         </button>
+
+        <div className="toolbar-switch">
+          <div
+            role="switch"
+            aria-checked={displayMode === "hex"}
+            onClick={() =>
+              setDisplayMode((m) => (m === "ascii" ? "hex" : "ascii"))
+            }
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 8,
+              cursor: "pointer",
+              userSelect: "none",
+            }}
+          >
+            <span style={{ fontSize: 12 }}>
+              {displayMode === "hex" ? "HEX" : "ASCII"}
+            </span>
+          </div>
+        </div>
 
         <label style={{ marginLeft: 12 }}>
           <span className="form-label-text">IP:</span>
@@ -2279,6 +2324,12 @@ function TCPClientView({ active }: { active: boolean }) {
     setHtml(editorRef.current.innerHTML);
   };
 
+  const [displayMode, setDisplayMode] = useState<"ascii" | "hex">("ascii");
+  const displayModeRef = useRef(displayMode);
+  useEffect(() => {
+    displayModeRef.current = displayMode;
+  }, [displayMode]);
+
   const bytesToHex = (bytes: Uint8Array) => {
     return Array.from(bytes)
       .map((b) => b.toString(16).padStart(2, "0"))
@@ -2375,15 +2426,21 @@ function TCPClientView({ active }: { active: boolean }) {
 
         let text = "";
         let isHexShown = false;
-        try {
-          text = new TextDecoder().decode(bytes);
-          if (text.includes("\uFFFD") || /[\x00-\x08\x0E-\x1F]/.test(text)) {
+        const mode = displayModeRef.current;
+        if (mode === "hex") {
+          text = bytesToHex(bytes);
+          isHexShown = true;
+        } else {
+          try {
+            text = new TextDecoder().decode(bytes);
+            if (text.includes("\uFFFD") || /[\x00-\x08\x0E-\x1F]/.test(text)) {
+              text = bytesToHex(bytes);
+              isHexShown = true;
+            }
+          } catch (err) {
             text = bytesToHex(bytes);
             isHexShown = true;
           }
-        } catch (err) {
-          text = bytesToHex(bytes);
-          isHexShown = true;
         }
 
         const contentHtml = isHexShown
@@ -2521,6 +2578,27 @@ function TCPClientView({ active }: { active: boolean }) {
         >
           复制消息
         </button>
+
+        <div className="toolbar-switch">
+          <div
+            role="switch"
+            aria-checked={displayMode === "hex"}
+            onClick={() =>
+              setDisplayMode((m) => (m === "ascii" ? "hex" : "ascii"))
+            }
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 8,
+              cursor: "pointer",
+              userSelect: "none",
+            }}
+          >
+            <span style={{ fontSize: 12 }}>
+              {displayMode === "hex" ? "HEX" : "ASCII"}
+            </span>
+          </div>
+        </div>
 
         <label style={{ marginLeft: 12 }}>
           <span className="form-label-text">远端:</span>
