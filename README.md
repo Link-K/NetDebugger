@@ -2,6 +2,11 @@
 
 这是一个基于 `Tauri + React + TypeScript (Vite)` 的网络调试工具，集成了 UDP/TCP 的 Server/Client 功能，便于发送/接收报文、回放指令集与快速调试。
 
+![](imgs/1.png)
+![](imgs/2.png)
+![](imgs/3.png)
+![](imgs/4.png)
+
 **项目结构**
 - **`src/`**: 前端 React 应用，UI 与交互逻辑位于 `src/App.tsx`。
 - **`src-tauri/`**: Tauri / Rust 后端，网络逻辑散布在 `src-tauri/src/`（例如 `udp_server.rs`、`udp_client.rs`、`tcp_server.rs`、`tcp_client.rs`）。

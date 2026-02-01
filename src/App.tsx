@@ -13,6 +13,41 @@ type Command = {
 
 const appVersion = tauriConf?.version ?? packageJson?.version ?? "unknown";
 
+type Settings = {
+  maxMessages: number;
+};
+
+const SETTINGS_KEY = "nd_settings";
+const DEFAULT_MAX_MESSAGES = 2000;
+
+const sanitizeMaxMessages = (value: unknown) => {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return DEFAULT_MAX_MESSAGES;
+  const floored = Math.floor(n);
+  return Math.min(10000, Math.max(100, floored));
+};
+
+const loadSettings = (): Settings => {
+  try {
+    const raw = localStorage.getItem(SETTINGS_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      return {
+        maxMessages: sanitizeMaxMessages(parsed?.maxMessages),
+      };
+    }
+  } catch (e) {}
+  return { maxMessages: DEFAULT_MAX_MESSAGES };
+};
+
+const saveSettings = (next: Settings) => {
+  try {
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(next));
+  } catch (e) {}
+};
+
+const getMaxMessages = () => loadSettings().maxMessages;
+
 function CommandsSidebar({
   open,
   setOpen,
@@ -751,6 +786,12 @@ function UDPServerView({ active }: { active: boolean }) {
     const snippet = `<div style=\"color:#666;font-size:12px;margin:4px 0;\"><em>${escapeHtml(String(msg))}</em></div>`;
     editorRef.current.insertAdjacentHTML("beforeend", snippet);
     editorRef.current.scrollTop = editorRef.current.scrollHeight;
+    msgCountRef.current += 1;
+    const maxMessages = getMaxMessages();
+    while (msgCountRef.current > maxMessages && editorRef.current.firstChild) {
+      editorRef.current.removeChild(editorRef.current.firstChild);
+      msgCountRef.current -= 1;
+    }
     setHtml(editorRef.current.innerHTML);
   };
 
@@ -978,9 +1019,13 @@ function UDPServerView({ active }: { active: boolean }) {
           editorRef.current.insertAdjacentHTML("beforeend", snippet);
           editorRef.current.scrollTop = editorRef.current.scrollHeight;
           msgCountRef.current += 1;
-          if (msgCountRef.current >= 2000) {
-            editorRef.current.innerHTML = "";
-            msgCountRef.current = 0;
+          const maxMessages = getMaxMessages();
+          while (
+            msgCountRef.current > maxMessages &&
+            editorRef.current.firstChild
+          ) {
+            editorRef.current.removeChild(editorRef.current.firstChild);
+            msgCountRef.current -= 1;
           }
           setHtml(editorRef.current.innerHTML);
         }
@@ -1387,6 +1432,12 @@ function UDPClientView({ active }: { active: boolean }) {
     const snippet = `<div style=\"color:#666;font-size:12px;margin:4px 0;\"><em>${escapeHtml(String(msg))}</em></div>`;
     editorRef.current.insertAdjacentHTML("beforeend", snippet);
     editorRef.current.scrollTop = editorRef.current.scrollHeight;
+    msgCountRef.current += 1;
+    const maxMessages = getMaxMessages();
+    while (msgCountRef.current > maxMessages && editorRef.current.firstChild) {
+      editorRef.current.removeChild(editorRef.current.firstChild);
+      msgCountRef.current -= 1;
+    }
     setHtml(editorRef.current.innerHTML);
   };
 
@@ -1537,9 +1588,13 @@ function UDPClientView({ active }: { active: boolean }) {
             editorRef.current.insertAdjacentHTML("beforeend", snippet);
             editorRef.current.scrollTop = editorRef.current.scrollHeight;
             msgCountRef.current += 1;
-            if (msgCountRef.current >= 2000) {
-              editorRef.current.innerHTML = "";
-              msgCountRef.current = 0;
+            const maxMessages = getMaxMessages();
+            while (
+              msgCountRef.current > maxMessages &&
+              editorRef.current.firstChild
+            ) {
+              editorRef.current.removeChild(editorRef.current.firstChild);
+              msgCountRef.current -= 1;
             }
             setHtml(editorRef.current.innerHTML);
           }
@@ -1860,6 +1915,12 @@ function TCPServerView({ active }: { active: boolean }) {
     const snippet = `<div style=\"color:#666;font-size:12px;margin:4px 0;\"><em>${escapeHtml(String(msg))}</em></div>`;
     editorRef.current.insertAdjacentHTML("beforeend", snippet);
     editorRef.current.scrollTop = editorRef.current.scrollHeight;
+    msgCountRef.current += 1;
+    const maxMessages = getMaxMessages();
+    while (msgCountRef.current > maxMessages && editorRef.current.firstChild) {
+      editorRef.current.removeChild(editorRef.current.firstChild);
+      msgCountRef.current -= 1;
+    }
     setHtml(editorRef.current.innerHTML);
   };
 
@@ -2002,9 +2063,13 @@ function TCPServerView({ active }: { active: boolean }) {
           editorRef.current.insertAdjacentHTML("beforeend", snippet);
           editorRef.current.scrollTop = editorRef.current.scrollHeight;
           msgCountRef.current += 1;
-          if (msgCountRef.current >= 2000) {
-            editorRef.current.innerHTML = "";
-            msgCountRef.current = 0;
+          const maxMessages = getMaxMessages();
+          while (
+            msgCountRef.current > maxMessages &&
+            editorRef.current.firstChild
+          ) {
+            editorRef.current.removeChild(editorRef.current.firstChild);
+            msgCountRef.current -= 1;
           }
           setHtml(editorRef.current.innerHTML);
         }
@@ -2325,6 +2390,12 @@ function TCPClientView({ active }: { active: boolean }) {
     const snippet = `<div style=\"color:#666;font-size:12px;margin:4px 0;\"><em>${escapeHtml(String(msg))}</em></div>`;
     editorRef.current.insertAdjacentHTML("beforeend", snippet);
     editorRef.current.scrollTop = editorRef.current.scrollHeight;
+    msgCountRef.current += 1;
+    const maxMessages = getMaxMessages();
+    while (msgCountRef.current > maxMessages && editorRef.current.firstChild) {
+      editorRef.current.removeChild(editorRef.current.firstChild);
+      msgCountRef.current -= 1;
+    }
     setHtml(editorRef.current.innerHTML);
   };
 
@@ -2460,9 +2531,13 @@ function TCPClientView({ active }: { active: boolean }) {
           editorRef.current.insertAdjacentHTML("beforeend", snippet);
           editorRef.current.scrollTop = editorRef.current.scrollHeight;
           msgCountRef.current += 1;
-          if (msgCountRef.current >= 2000) {
-            editorRef.current.innerHTML = "";
-            msgCountRef.current = 0;
+          const maxMessages = getMaxMessages();
+          while (
+            msgCountRef.current > maxMessages &&
+            editorRef.current.firstChild
+          ) {
+            editorRef.current.removeChild(editorRef.current.firstChild);
+            msgCountRef.current -= 1;
           }
           setHtml(editorRef.current.innerHTML);
         }
@@ -2747,7 +2822,13 @@ function App() {
     "programmer",
   );
   const [aboutOpen, setAboutOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settings, setSettings] = useState<Settings>(() => loadSettings());
   const [active, setActive] = useState<"a" | "b" | "c" | "d">("a");
+
+  useEffect(() => {
+    saveSettings(settings);
+  }, [settings]);
 
   const applyCommandToActiveView = (c: Command) => {
     window.dispatchEvent(
@@ -2820,6 +2901,16 @@ function App() {
             strokeLinejoin="round"
           />
         </svg>
+      </button>
+
+      {/* settings toggle (above calculator) */}
+      <button
+        className="calc-toggle"
+        onClick={() => setSettingsOpen(true)}
+        aria-label="设置"
+        style={{ bottom: 116 }}
+      >
+        ⚙
       </button>
 
       {/* about toggle (bottom-right, calculator-style) */}
@@ -2900,6 +2991,54 @@ function App() {
             ) : (
               <ScientificCalculator onClose={() => setCalcOpen(false)} />
             )}
+          </div>
+        </div>
+      )}
+
+      {settingsOpen && (
+        <div
+          className="calculator-overlay"
+          role="presentation"
+          onMouseDown={() => setSettingsOpen(false)}
+        >
+          <div
+            className="calculator-panel about-panel"
+            role="dialog"
+            aria-label="设置"
+            onMouseDown={(e) => e.stopPropagation()}
+            style={{ width: "min(520px, calc(100% - 96px))" }}
+          >
+            <div className="calc-header">
+              <div className="calc-title">设置</div>
+              <button
+                className="calc-close"
+                onClick={() => setSettingsOpen(false)}
+                aria-label="关闭"
+              >
+                ✕
+              </button>
+            </div>
+            <div style={{ padding: "12px 16px", color: "#e0e0e0" }}>
+              <div style={{ fontSize: 12, opacity: 0.7, marginBottom: 8 }}>
+                消息显示上限（超过后清理最旧）
+              </div>
+              <input
+                type="number"
+                min={100}
+                max={10000}
+                value={settings.maxMessages}
+                onChange={(e) =>
+                  setSettings((prev) => ({
+                    ...prev,
+                    maxMessages: sanitizeMaxMessages(e.currentTarget.value),
+                  }))
+                }
+                style={{ width: 160 }}
+              />
+              <div style={{ fontSize: 12, opacity: 0.6, marginTop: 8 }}>
+                取值范围 100 - 10000
+              </div>
+            </div>
           </div>
         </div>
       )}
@@ -3003,7 +3142,7 @@ function App() {
                     作者与版本
                   </div>
                   <div style={{ lineHeight: 1.6 }}>
-                    <div>作者：Link-K</div>
+                    <div>作者：若渊</div>
                     <div>版本：v{appVersion}</div>
                     <div>
                       开源地址：
