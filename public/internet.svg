@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Network debugger icon">
+  <defs>
+    <linearGradient id="g" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0%" stop-color="#4F8CFF"/>
+      <stop offset="100%" stop-color="#6C5CE7"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background circle -->
+  <circle cx="512" cy="512" r="456" fill="url(#g)"/>
+
+  <!-- Network nodes -->
+  <circle cx="312" cy="352" r="56" fill="#FFFFFF"/>
+  <circle cx="712" cy="352" r="56" fill="#FFFFFF"/>
+  <circle cx="512" cy="704" r="64" fill="#FFFFFF"/>
+
+  <!-- Connections -->
+  <path d="M366 376 L658 376" stroke="#FFFFFF" stroke-width="36" stroke-linecap="round"/>
+  <path d="M340 404 L486 640" stroke="#FFFFFF" stroke-width="36" stroke-linecap="round"/>
+  <path d="M684 404 L538 640" stroke="#FFFFFF" stroke-width="36" stroke-linecap="round"/>
+
+  <!-- Debugger magnifier -->
+  <circle cx="704" cy="640" r="96" fill="none" stroke="#FFFFFF" stroke-width="36"/>
+  <path d="M770 706 L838 774" stroke="#FFFFFF" stroke-width="36" stroke-linecap="round"/>
+</svg>
