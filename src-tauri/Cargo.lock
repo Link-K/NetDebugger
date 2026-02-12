@@ -1625,6 +1625,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "if-addrs"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cbc0fa01ffc752e9dbc72818cdb072cd028b86be5e09dd04c5a643704fe101a9"
+dependencies = [
+ "libc",
+ "winapi",
+]
+
+[[package]]
 name = "indexmap"
 version = "1.9.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2015,6 +2025,7 @@ name = "netdebugger"
 version = "2.0.0"
 dependencies = [
  "base64 0.21.7",
+ "if-addrs",
  "once_cell",
  "serde",
  "serde_json",

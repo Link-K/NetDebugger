@@ -77,6 +77,31 @@ fn tcp_client_send(remote_addr: String, data_b64: String) -> Result<String, Stri
     tcp_client::send(remote_addr, data_b64)
 }
 
+#[tauri::command]
+fn list_local_ips() -> Result<Vec<String>, String> {
+    match if_addrs::get_if_addrs() {
+        Ok(addrs) => {
+            let mut ips: Vec<String> = addrs
+                .into_iter()
+                .filter_map(|iface| match iface.ip() {
+                    std::net::IpAddr::V4(v4) => {
+                        if v4.is_loopback() {
+                            None
+                        } else {
+                            Some(v4.to_string())
+                        }
+                    }
+                    _ => None,
+                })
+                .collect();
+            ips.sort();
+            ips.dedup();
+            Ok(ips)
+        }
+        Err(e) => Err(format!("{}", e)),
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -94,7 +119,8 @@ pub fn run() {
             tcp_server_send,
             start_tcp_client,
             stop_tcp_client,
-            tcp_client_send
+            tcp_client_send,
+            list_local_ips
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
