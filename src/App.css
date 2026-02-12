@@ -864,6 +864,9 @@ body,
     /* keep content away from the left edge so the top-left toggle won't overlap controls */
     box-sizing: border-box;
     flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
     overflow: auto;
 }
 
@@ -875,6 +878,10 @@ body,
 
 .views {
     margin-top: 12px;
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
 }
 
 .view {
@@ -888,12 +895,32 @@ body,
     box-sizing: border-box;
 }
 
+/* Make the active view grow to fill available vertical space so message panel can expand */
+.view.active {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0; /* allow children to shrink correctly */
+}
+
+/* Message panel inside views: expand to take remaining space and scroll when needed */
+.message-panel {
+    border: 1px solid rgba(0,0,0,0.12);
+    padding: 8px;
+    border-radius: 4px;
+    overflow: auto;
+    flex: 1 1 200px;
+    min-height: 150px;
+    box-sizing: border-box;
+    background: transparent;
+}
+
 .view.hidden {
     display: none;
 }
 
 .view.active {
-    display: block;
+    display: flex;
 }
 
 @media (prefers-color-scheme: dark) {

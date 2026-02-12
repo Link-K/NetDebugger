@@ -1124,15 +1124,9 @@ function UDPServerView({ active }: { active: boolean }) {
 
 			<div
 				ref={editorRef}
+				className="message-panel"
 				contentEditable
 				onInput={() => setHtml(editorRef.current?.innerHTML ?? "")}
-				style={{
-					border: "1px solid #ccc",
-					height: 250,
-					overflowY: "auto",
-					padding: 8,
-					borderRadius: 4,
-				}}
 				aria-label="富文本编辑器"
 			/>
 
@@ -1478,8 +1472,8 @@ function UDPClientView({ active }: { active: boolean }) {
 	const currentBind = `${ip}:${port}`;
 	const [connections, setConnections] = useState<string[]>([]);
 	const isConnected = (bind: string) => connections.includes(bind);
-
 	const [detectedIps, setDetectedIps] = useState<string[]>([]);
+
 	useEffect(() => {
 		(async () => {
 			try {
@@ -1716,15 +1710,9 @@ function UDPClientView({ active }: { active: boolean }) {
 
 			<div
 				ref={editorRef}
+				className="message-panel"
 				contentEditable
 				onInput={() => setHtml(editorRef.current?.innerHTML ?? "")}
-				style={{
-					border: "1px solid #ccc",
-					height: 250,
-					overflowY: "auto",
-					padding: 8,
-					borderRadius: 4,
-				}}
 				aria-label="消息面板"
 			/>
 
@@ -2228,15 +2216,9 @@ function TCPServerView({ active }: { active: boolean }) {
 
 			<div
 				ref={editorRef}
+				className="message-panel"
 				contentEditable
 				onInput={() => setHtml(editorRef.current?.innerHTML ?? "")}
-				style={{
-					border: "1px solid #ccc",
-					height: 250,
-					overflowY: "auto",
-					padding: 8,
-					borderRadius: 4,
-				}}
 				aria-label="消息面板"
 			/>
 
@@ -2288,6 +2270,7 @@ function TCPServerView({ active }: { active: boolean }) {
 				<label style={{ marginLeft: 12 }}>
 					<span className="form-label-text">IP:</span>
 					<input
+						list="detected-ips-tcp-server"
 						value={ip}
 						onChange={(e) =>
 							setIp(e.currentTarget.value.replace(/[^0-9.]/g, ""))
@@ -2295,6 +2278,11 @@ function TCPServerView({ active }: { active: boolean }) {
 						onBlur={() => addHistory("bind_ip", ip)}
 						style={{ width: 140 }}
 					/>
+					<datalist id="detected-ips-tcp-server">
+						{detectedIps.map((d) => (
+							<option key={`det-tcp-s-${d}`} value={d} />
+						))}
+					</datalist>
 				</label>
 				<label>
 					<span className="form-label-text">Port:</span>
@@ -2679,15 +2667,9 @@ function TCPClientView({ active }: { active: boolean }) {
 
 			<div
 				ref={editorRef}
+				className="message-panel"
 				contentEditable
 				onInput={() => setHtml(editorRef.current?.innerHTML ?? "")}
-				style={{
-					border: "1px solid #ccc",
-					height: 250,
-					overflowY: "auto",
-					padding: 8,
-					borderRadius: 4,
-				}}
 				aria-label="消息面板"
 			/>
 
