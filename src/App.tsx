@@ -3226,11 +3226,12 @@ function App() {
 				⚙
 			</button>
 
-			{/* about toggle (bottom-right, calculator-style) */}
+			{/* about toggle (moved to left, above settings button) */}
 			<button
-				className="about-toggle"
+				className="calc-toggle"
 				onClick={() => setAboutOpen(true)}
 				aria-label="关于"
+				style={{ bottom: 168 }}
 			>
 				<svg
 					width="18"
