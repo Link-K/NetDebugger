@@ -19,6 +19,26 @@ type Settings = {
 
 const SETTINGS_KEY = "nd_settings";
 const DEFAULT_MAX_MESSAGES = 2000;
+const COMMANDS_SIDEBAR_WIDTH_KEY = "nd_commands_sidebar_width";
+const DEFAULT_COMMANDS_SIDEBAR_WIDTH = 720;
+const MIN_COMMANDS_SIDEBAR_WIDTH = 520;
+const MAX_COMMANDS_SIDEBAR_WIDTH = 1100;
+
+const getMaxCommandsSidebarWidth = () => {
+	if (typeof window === "undefined") return DEFAULT_COMMANDS_SIDEBAR_WIDTH;
+	const viewportWidth = window.innerWidth;
+	if (viewportWidth <= 768) return viewportWidth;
+	return Math.max(
+		MIN_COMMANDS_SIDEBAR_WIDTH,
+		Math.min(MAX_COMMANDS_SIDEBAR_WIDTH, viewportWidth - 48),
+	);
+};
+
+const clampCommandsSidebarWidth = (value: number) => {
+	const maxWidth = getMaxCommandsSidebarWidth();
+	const minWidth = Math.min(MIN_COMMANDS_SIDEBAR_WIDTH, maxWidth);
+	return Math.round(Math.min(maxWidth, Math.max(minWidth, value)));
+};
 
 const sanitizeMaxMessages = (value: unknown) => {
 	const n = Number(value);
@@ -69,8 +89,23 @@ function CommandsSidebar({
 	setOpen: (v: boolean) => void;
 	onApply: (c: Command) => void;
 }) {
+	const createEmptyCommand = (): Command => ({
+		name: "",
+		format: "ascii",
+		data: "",
+	});
 	const [commands, setCommands] = useState<Command[]>([]);
+	const [sidebarWidth, setSidebarWidth] = useState(DEFAULT_COMMANDS_SIDEBAR_WIDTH);
+	const [formCommand, setFormCommand] = useState<Command>(createEmptyCommand);
+	const [editingIndex, setEditingIndex] = useState<number | null>(null);
+	const [isFormVisible, setIsFormVisible] = useState(false);
+	const [isResizingSidebar, setIsResizingSidebar] = useState(false);
+	const [formError, setFormError] = useState("");
 	const importInputRef = useRef<HTMLInputElement | null>(null);
+	const formNameInputRef = useRef<HTMLInputElement | null>(null);
+	const resizeStateRef = useRef<{ startX: number; startWidth: number } | null>(null);
+	const resizeFrameRef = useRef<number | null>(null);
+	const pendingSidebarWidthRef = useRef<number | null>(null);
 
 	useEffect(() => {
 		try {
@@ -87,6 +122,93 @@ function CommandsSidebar({
 			// ignore
 		}
 	}, []);
+
+	useEffect(() => {
+		try {
+			const raw = localStorage.getItem(COMMANDS_SIDEBAR_WIDTH_KEY);
+			if (!raw) {
+				setSidebarWidth(clampCommandsSidebarWidth(DEFAULT_COMMANDS_SIDEBAR_WIDTH));
+				return;
+			}
+			const parsed = Number(raw);
+			if (Number.isFinite(parsed)) {
+				setSidebarWidth(clampCommandsSidebarWidth(parsed));
+			}
+		} catch (e) {
+			setSidebarWidth(clampCommandsSidebarWidth(DEFAULT_COMMANDS_SIDEBAR_WIDTH));
+		}
+	}, []);
+
+	useEffect(() => {
+		try {
+			localStorage.setItem(COMMANDS_SIDEBAR_WIDTH_KEY, String(sidebarWidth));
+		} catch (e) {
+			// ignore
+		}
+	}, [sidebarWidth]);
+
+	useEffect(() => {
+		const handleWindowResize = () => {
+			setSidebarWidth((currentWidth) => clampCommandsSidebarWidth(currentWidth));
+		};
+
+		window.addEventListener("resize", handleWindowResize);
+		return () => window.removeEventListener("resize", handleWindowResize);
+	}, []);
+
+	useEffect(() => {
+		if (!open || !isFormVisible) return;
+		formNameInputRef.current?.focus();
+	}, [open, isFormVisible, editingIndex]);
+
+	const stopSidebarResize = () => {
+		resizeStateRef.current = null;
+		setIsResizingSidebar(false);
+		document.body.style.cursor = "";
+		document.body.style.userSelect = "";
+		if (resizeFrameRef.current != null) {
+			window.cancelAnimationFrame(resizeFrameRef.current);
+			resizeFrameRef.current = null;
+		}
+		if (pendingSidebarWidthRef.current != null) {
+			setSidebarWidth(pendingSidebarWidthRef.current);
+			pendingSidebarWidthRef.current = null;
+		}
+		window.removeEventListener("pointermove", handleSidebarResize);
+		window.removeEventListener("pointerup", stopSidebarResize);
+	};
+
+	const handleSidebarResize = (event: PointerEvent) => {
+		const resizeState = resizeStateRef.current;
+		if (!resizeState) return;
+		const nextWidth = clampCommandsSidebarWidth(
+			resizeState.startWidth + (resizeState.startX - event.clientX),
+		);
+		pendingSidebarWidthRef.current = nextWidth;
+		if (resizeFrameRef.current != null) return;
+		resizeFrameRef.current = window.requestAnimationFrame(() => {
+			resizeFrameRef.current = null;
+			if (pendingSidebarWidthRef.current == null) return;
+			setSidebarWidth(pendingSidebarWidthRef.current);
+		});
+	};
+
+	const startSidebarResize = (event: React.PointerEvent<HTMLDivElement>) => {
+		if (!open) return;
+		event.preventDefault();
+		resizeStateRef.current = {
+			startX: event.clientX,
+			startWidth: sidebarWidth,
+		};
+		pendingSidebarWidthRef.current = sidebarWidth;
+		setIsResizingSidebar(true);
+		document.body.style.cursor = "ew-resize";
+		document.body.style.userSelect = "none";
+		window.addEventListener("pointermove", handleSidebarResize);
+		window.addEventListener("pointerup", stopSidebarResize);
+	};
+
+	useEffect(() => stopSidebarResize, []);
 
 	const saveCommands = (next: Command[]) => {
 		try {
@@ -131,33 +253,87 @@ function CommandsSidebar({
 		e.target.value = "";
 	};
 
+	const resetForm = () => {
+		setFormCommand(createEmptyCommand());
+		setEditingIndex(null);
+		setFormError("");
+		setIsFormVisible(false);
+	};
+
 	const newCommand = () => {
-		const name = window.prompt("指令名称:");
-		if (!name) return;
-		let format = window.prompt("格式 (ascii 或 hex):", "ascii");
-		if (!format) return;
-		format = format.trim().toLowerCase();
-		if (format !== "ascii" && format !== "hex") {
-			alert("格式必须为 ascii 或 hex");
+		setFormCommand(createEmptyCommand());
+		setEditingIndex(null);
+		setFormError("");
+		setIsFormVisible(true);
+	};
+
+	const editCommand = (index: number) => {
+		const current = commands[index];
+		if (!current) return;
+		setFormCommand(current);
+		setEditingIndex(index);
+		setFormError("");
+		setIsFormVisible(true);
+	};
+
+	const saveFormCommand = () => {
+		const trimmedName = formCommand.name.trim();
+		if (!trimmedName) {
+			setFormError("指令名称不能为空");
 			return;
 		}
-		const data = window.prompt("数据:");
-		if (data == null) return;
-		const c: Command = { name: name.trim(), format: format as any, data };
-		saveCommands([c, ...commands]);
+
+		const nextCommand: Command = {
+			name: trimmedName,
+			format: formCommand.format,
+			data: formCommand.data,
+		};
+
+		if (editingIndex == null) {
+			saveCommands([nextCommand, ...commands]);
+		} else {
+			const next = commands.map((command, commandIndex) =>
+				commandIndex === editingIndex ? nextCommand : command,
+			);
+			saveCommands(next);
+		}
+
+		resetForm();
+	};
+
+	const onFormSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+		event.preventDefault();
+		saveFormCommand();
 	};
 
 	const removeCommand = (index: number) => {
 		if (!window.confirm("确定要移除该指令吗？")) return;
 		const next = commands.filter((_, i) => i !== index);
 		saveCommands(next);
+		if (editingIndex === index) {
+			resetForm();
+			return;
+		}
+		if (editingIndex != null && index < editingIndex) {
+			setEditingIndex(editingIndex - 1);
+		}
 	};
 
 	return (
 		<div
-			className={"commands-sidebar" + (open ? " open" : "")}
+			className={
+				"commands-sidebar" +
+				(open ? " open" : "") +
+				(isResizingSidebar ? " resizing" : "")
+			}
 			aria-hidden={!open}
+			style={{ width: open ? sidebarWidth : 0 }}
 		>
+			<div
+				className="commands-resize-handle"
+				onPointerDown={startSidebarResize}
+				role="presentation"
+			/>
 			<div className="commands-header" style={{ position: "relative" }}>
 				<button
 					className="commands-close"
@@ -210,10 +386,79 @@ function CommandsSidebar({
 				</div>
 			</div>
 			<div className="commands-body">
+				{isFormVisible && (
+					<form className="commands-editor" onSubmit={onFormSubmit}>
+						<div className="commands-editor-header">
+							<h4>{editingIndex == null ? "新增指令" : "修改指令"}</h4>
+						</div>
+						<div className="commands-editor-grid">
+							<label>
+								<span>名称</span>
+								<input
+									ref={formNameInputRef}
+									type="text"
+									value={formCommand.name}
+									onChange={(event) => {
+										setFormCommand((current) => ({
+											...current,
+											name: event.target.value,
+										}));
+										if (formError) setFormError("");
+									}}
+									placeholder="例如：Ping ASCII"
+								/>
+							</label>
+							<label>
+								<span>格式</span>
+								<select
+									value={formCommand.format}
+									onChange={(event) =>
+										setFormCommand((current) => ({
+											...current,
+											format: event.target.value as Command["format"],
+										}))
+									}
+								>
+									<option value="ascii">ASCII</option>
+									<option value="hex">HEX</option>
+								</select>
+							</label>
+						</div>
+						<label className="commands-editor-field commands-editor-field-full">
+							<span>数据</span>
+							<textarea
+								value={formCommand.data}
+								onChange={(event) =>
+									setFormCommand((current) => ({
+										...current,
+										data: event.target.value,
+									}))
+								}
+								rows={4}
+								placeholder="输入指令内容"
+							/>
+						</label>
+						{formError && <div className="commands-editor-error">{formError}</div>}
+						<div className="commands-editor-actions">
+							<button type="submit">
+								{editingIndex == null ? "保存新增" : "保存修改"}
+							</button>
+							<button type="button" onClick={resetForm}>
+								取消
+							</button>
+						</div>
+					</form>
+				)}
 				<table
 					className="commands-table"
 					style={{ width: "100%", borderCollapse: "collapse" }}
 				>
+					<colgroup>
+						<col style={{ width: "24%" }} />
+						<col style={{ width: "12%" }} />
+						<col style={{ width: "31%" }} />
+						<col style={{ width: "33%" }} />
+					</colgroup>
 					<thead>
 						<tr>
 							<th style={{ textAlign: "left" }}>名称</th>
@@ -224,21 +469,18 @@ function CommandsSidebar({
 					</thead>
 					<tbody>
 						{commands.map((c, idx) => (
-							<tr key={idx}>
-								<td>{c.name}</td>
+							<tr
+								key={idx}
+								className={editingIndex === idx ? "command-row editing" : "command-row"}
+							>
+								<td className="command-name-cell">{c.name}</td>
 								<td>{c.format.toUpperCase()}</td>
-								<td style={{ fontFamily: "monospace" }}>{c.data}</td>
+								<td className="command-data-cell">{c.data}</td>
 								<td>
-									<div
-										style={{
-											display: "flex",
-											justifyContent: "space-between",
-											alignItems: "center",
-											gap: 0,
-										}}
-									>
-										<div style={{ display: "flex", gap: 8 }}>
+									<div className="command-actions-cell">
+										<div className="command-actions-group">
 											<button
+												className="command-action-button command-action-apply"
 												onClick={() => {
 													onApply(c);
 													setOpen(false);
@@ -246,9 +488,18 @@ function CommandsSidebar({
 											>
 												应用
 											</button>
-										</div>
-										<div>
-											<button onClick={() => removeCommand(idx)}>移除</button>
+											<button
+												className="command-action-button command-action-edit"
+												onClick={() => editCommand(idx)}
+											>
+												修改
+											</button>
+											<button
+												className="command-action-button command-action-remove"
+												onClick={() => removeCommand(idx)}
+											>
+												移除
+											</button>
 										</div>
 									</div>
 								</td>
