@@ -48,6 +48,18 @@ const saveSettings = (next: Settings) => {
 
 const getMaxMessages = () => loadSettings().maxMessages;
 
+const uniqueSuggestions = (...groups: Array<Array<string | null | undefined>>) => {
+	return Array.from(
+		new Set(
+			groups.flatMap((group) =>
+				group
+					.map((value) => value?.trim())
+					.filter((value): value is string => Boolean(value)),
+			),
+		),
+	);
+};
+
 function CommandsSidebar({
 	open,
 	setOpen,
@@ -854,6 +866,7 @@ function UDPServerView({ active }: { active: boolean }) {
 
 	// histories for datalist dropdowns (persist in localStorage)
 	const [histories, setHistories] = useState<Record<string, string[]>>({});
+	const bindIpSuggestions = uniqueSuggestions(detectedIps, histories["bind_ip"] ?? []);
 
 	useEffect(() => {
 		try {
@@ -1178,7 +1191,8 @@ function UDPServerView({ active }: { active: boolean }) {
 				<label>
 					<span className="form-label-text">IP:</span>
 					<input
-						list="hist-bind-ip"
+						autoComplete="off"
+						list="udp-server-bind-ip-history"
 						placeholder="0.0.0.0"
 						pattern="^((25[0-5]|2[0-4]\\d|[01]?\\d?\\d)\\.){3}(25[0-5]|2[0-4]\\d|[01]?\\d?\\d)$"
 						title="请输入有效的 IPv4 地址"
@@ -1199,19 +1213,17 @@ function UDPServerView({ active }: { active: boolean }) {
 						}}
 						style={{ width: 150 }}
 					/>
-					<datalist id="hist-bind-ip">
-						{detectedIps.map((d) => (
-							<option key={`det-${d}`} value={d} />
-						))}
-						{(histories["bind_ip"] ?? []).map((h) => (
-							<option key={h} value={h} />
+					<datalist id="udp-server-bind-ip-history">
+						{bindIpSuggestions.map((value) => (
+							<option key={value} value={value} />
 						))}
 					</datalist>
 				</label>
 				<label>
 					<span className="form-label-text">Port:</span>
 					<input
-						list="hist-bind-port"
+						autoComplete="off"
+						list="udp-server-bind-port-history"
 						placeholder="9000"
 						type="text"
 						inputMode="numeric"
@@ -1231,7 +1243,7 @@ function UDPServerView({ active }: { active: boolean }) {
 						}}
 						style={{ width: 120 }}
 					/>
-					<datalist id="hist-bind-port">
+					<datalist id="udp-server-bind-port-history">
 						{(histories["bind_port"] ?? []).map((h) => (
 							<option key={h} value={h} />
 						))}
@@ -1251,13 +1263,14 @@ function UDPServerView({ active }: { active: boolean }) {
 				<label className="field field-target">
 					<span className="form-label-text">目标:</span>
 					<input
-						list="hist-send-target"
+						autoComplete="off"
+						list="udp-server-send-target-history"
 						placeholder="ip:port"
 						value={sendTarget}
 						onChange={(e) => setSendTarget(e.currentTarget.value)}
 						onBlur={() => addHistory("send_target", sendTarget)}
 					/>
-					<datalist id="hist-send-target">
+					<datalist id="udp-server-send-target-history">
 						{(histories["send_target"] ?? []).map((h) => (
 							<option key={h} value={h} />
 						))}
@@ -1266,14 +1279,15 @@ function UDPServerView({ active }: { active: boolean }) {
 				<label className="field field-interval">
 					<span className="form-label-text">间隔:</span>
 					<input
-						list="hist-repeat-ms"
+						autoComplete="off"
+						list="udp-server-repeat-ms-history"
 						value={repeatMs}
 						onChange={(e) =>
 							setRepeatMs(e.currentTarget.value.replace(/[^0-9]/g, ""))
 						}
 						onBlur={() => addHistory("repeat_ms", repeatMs)}
 					/>
-					<datalist id="hist-repeat-ms">
+					<datalist id="udp-server-repeat-ms-history">
 						{(histories["repeat_ms"] ?? []).map((h) => (
 							<option key={h} value={h} />
 						))}
@@ -1331,13 +1345,14 @@ function UDPServerView({ active }: { active: boolean }) {
 				<label className="field field-message">
 					<span className="form-label-text">消息:</span>
 					<input
-						list="hist-send-msg"
+						autoComplete="off"
+						list="udp-server-send-msg-history"
 						placeholder="要发送的消息"
 						value={sendMsg}
 						onChange={(e) => setSendMsg(e.currentTarget.value)}
 						onBlur={() => addHistory("send_msg", sendMsg)}
 					/>
-					<datalist id="hist-send-msg">
+					<datalist id="udp-server-send-msg-history">
 						{(histories["send_msg"] ?? []).map((h) => (
 							<option key={h} value={h} />
 						))}
@@ -1764,6 +1779,7 @@ function UDPClientView({ active }: { active: boolean }) {
 				<label style={{ marginLeft: 12 }}>
 					<span className="form-label-text">IP:</span>
 					<input
+						autoComplete="off"
 						list="detected-ips-tcp"
 						value={ip}
 						onChange={(e) =>
@@ -1802,13 +1818,14 @@ function UDPClientView({ active }: { active: boolean }) {
 				<label className="field field-target">
 					<span className="form-label-text">目标:</span>
 					<input
-						list="hist-send-target"
+						autoComplete="off"
+						list="udp-client-send-target-history"
 						placeholder="ip:port"
 						value={sendTarget}
 						onChange={(e) => setSendTarget(e.currentTarget.value)}
 						onBlur={() => addHistory("send_target", sendTarget)}
 					/>
-					<datalist id="hist-send-target">
+					<datalist id="udp-client-send-target-history">
 						{(histories["send_target"] ?? []).map((h) => (
 							<option key={h} value={h} />
 						))}
@@ -1820,13 +1837,14 @@ function UDPClientView({ active }: { active: boolean }) {
 				<label className="field field-message">
 					<span className="form-label-text">消息:</span>
 					<input
-						list="hist-send-msg"
+						autoComplete="off"
+						list="udp-client-send-msg-history"
 						placeholder="要发送的消息"
 						value={sendMsg}
 						onChange={(e) => setSendMsg(e.currentTarget.value)}
 						onBlur={() => addHistory("send_msg", sendMsg)}
 					/>
-					<datalist id="hist-send-msg">
+					<datalist id="udp-client-send-msg-history">
 						{(histories["send_msg"] ?? []).map((h) => (
 							<option key={h} value={h} />
 						))}
@@ -2270,6 +2288,7 @@ function TCPServerView({ active }: { active: boolean }) {
 				<label style={{ marginLeft: 12 }}>
 					<span className="form-label-text">IP:</span>
 					<input
+						autoComplete="off"
 						list="detected-ips-tcp-server"
 						value={ip}
 						onChange={(e) =>
@@ -2304,6 +2323,7 @@ function TCPServerView({ active }: { active: boolean }) {
 				<label className="field field-peer">
 					<span className="form-label-text">目标客户端 (留空为广播):</span>
 					<input
+						autoComplete="off"
 						list="hist-peers"
 						placeholder="ip:port"
 						value={toPeer ?? ""}
@@ -2321,13 +2341,14 @@ function TCPServerView({ active }: { active: boolean }) {
 				<label className="field field-message">
 					<span className="form-label-text">消息:</span>
 					<input
-						list="hist-send-msg"
+						autoComplete="off"
+						list="tcp-server-send-msg-history"
 						placeholder="要发送的消息"
 						value={sendMsg}
 						onChange={(e) => setSendMsg(e.currentTarget.value)}
 						onBlur={() => addHistory("send_msg", sendMsg)}
 					/>
-					<datalist id="hist-send-msg">
+					<datalist id="tcp-server-send-msg-history">
 						{(histories["send_msg"] ?? []).map((h) => (
 							<option key={h} value={h} />
 						))}
@@ -2721,6 +2742,7 @@ function TCPClientView({ active }: { active: boolean }) {
 				<label style={{ marginLeft: 12 }}>
 					<span className="form-label-text">远端:</span>
 					<input
+						autoComplete="off"
 						list="hist-tcp-remote"
 						value={remoteAddr}
 						onChange={(e) => setRemoteAddr(e.currentTarget.value)}
@@ -2747,13 +2769,14 @@ function TCPClientView({ active }: { active: boolean }) {
 				<label className="field field-message">
 					<span className="form-label-text">消息:</span>
 					<input
-						list="hist-send-msg"
+						autoComplete="off"
+						list="tcp-client-send-msg-history"
 						placeholder="要发送的消息"
 						value={sendMsg}
 						onChange={(e) => setSendMsg(e.currentTarget.value)}
 						onBlur={() => addHistory("send_msg", sendMsg)}
 					/>
-					<datalist id="hist-send-msg">
+					<datalist id="tcp-client-send-msg-history">
 						{(histories["send_msg"] ?? []).map((h) => (
 							<option key={h} value={h} />
 						))}
