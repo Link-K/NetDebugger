@@ -1,0 +1,4 @@
+- 项目用途: NetDebugger，基于 Tauri 的 TCP/UDP 网络调试工具，支持 Server/Client 收发、活跃连接查看、指令集与历史记录。
+- 技术栈: 前端 React 19 + TypeScript + Vite；桌面壳与后端网络逻辑为 Tauri 2 + Rust。
+- 代码结构: `src/` 为前端 UI/交互（核心在 `src/App.tsx`）；`src-tauri/src/` 为 Rust 网络实现（udp/tcp server/client）。
+- 平台: Windows 开发环境。

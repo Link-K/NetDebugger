@@ -1,0 +1,3 @@
+- 风格约定: 前端使用 TypeScript + React 函数组件；Rust 使用模块化文件（udp/tcp client/server 分离）。
+- 完成任务后建议: 至少执行 `pnpm build`（TypeScript 类型检查 + Vite 构建）；若改动 Rust 或 Tauri 命令，再执行 `cargo check`（`src-tauri`）。
+- 当前仓库暂未在 README 中声明专门 lint/test 命令，默认以构建通过作为基础验收。

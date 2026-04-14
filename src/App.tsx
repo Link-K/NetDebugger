@@ -1104,6 +1104,7 @@ function UDPServerView({ active }: { active: boolean }) {
 	const isConnected = (bind: string) => {
 		return connections.includes(bind);
 	};
+	const [selectedBind, setSelectedBind] = useState("");
 	const [, setStatus] = useState("");
 	const [hideDup] = useState(true);
 
@@ -1114,6 +1115,13 @@ function UDPServerView({ active }: { active: boolean }) {
 	const [repeatEnabled, setRepeatEnabled] = useState(false);
 	const [repeatMs, setRepeatMs] = useState("1000");
 	const repeatRef = useRef<number | null>(null);
+	const sendStateRef = useRef({
+		selectedBind: "",
+		currentBind: "",
+		sendTarget: "",
+		sendMsg: "",
+		sendMode: "ascii" as "ascii" | "hex",
+	});
 
 	// histories for datalist dropdowns (persist in localStorage)
 	const [histories, setHistories] = useState<Record<string, string[]>>({});
@@ -1163,6 +1171,24 @@ function UDPServerView({ active }: { active: boolean }) {
 	}, [sendTarget]);
 
 	useEffect(() => {
+		setSelectedBind((prev) => {
+			if (prev && connections.includes(prev)) return prev;
+			if (connections.includes(currentBind)) return currentBind;
+			return connections[0] ?? "";
+		});
+	}, [connections, currentBind]);
+
+	useEffect(() => {
+		sendStateRef.current = {
+			selectedBind,
+			currentBind,
+			sendTarget,
+			sendMsg,
+			sendMode: sendModeLocal,
+		};
+	}, [selectedBind, currentBind, sendTarget, sendMsg, sendModeLocal]);
+
+	useEffect(() => {
 		return () => {
 			if (repeatRef.current != null) {
 				clearInterval(repeatRef.current);
@@ -1183,24 +1209,32 @@ function UDPServerView({ active }: { active: boolean }) {
 
 	const sendOnce = async () => {
 		try {
+			const {
+				selectedBind: latestSelectedBind,
+				currentBind: latestCurrentBind,
+				sendTarget: latestTarget,
+				sendMsg: latestMsg,
+				sendMode: latestMode,
+			} = sendStateRef.current;
 			let bytes: Uint8Array;
-			if (sendModeLocal === "hex") {
-				bytes = parseHex(sendMsg);
+			if (latestMode === "hex") {
+				bytes = parseHex(latestMsg);
 			} else {
-				bytes = new TextEncoder().encode(sendMsg);
+				bytes = new TextEncoder().encode(latestMsg);
 			}
 			const b64 = btoa(String.fromCharCode(...bytes));
+			const sourceBind = latestSelectedBind || latestCurrentBind;
 			// Send using the currently configured IP:Port as source when possible.
 			// If there is a running server on that bind, backend uses the same socket (source port matches the listener).
 			await invoke<string>("udp_send_from", {
-				bindAddr: currentBind,
-				toAddr: sendTarget,
+				bindAddr: sourceBind,
+				toAddr: latestTarget,
 				dataB64: b64,
 			});
 			// save to histories
-			addHistory("send_msg", sendMsg);
-			addHistory("send_target", sendTarget);
-			appendStatus(`sent ${bytes.length} bytes to ${sendTarget}`);
+			addHistory("send_msg", latestMsg);
+			addHistory("send_target", latestTarget);
+			appendStatus(`sent ${bytes.length} bytes from ${sourceBind} to ${latestTarget}`);
 		} catch (e) {
 			appendStatus(String(e));
 		}
@@ -1647,15 +1681,17 @@ function UDPServerView({ active }: { active: boolean }) {
 							<li
 								key={c}
 								className={
-									c === currentBind
+									c === selectedBind
 										? "connection-item current"
 										: "connection-item"
 								}
+								onClick={() => setSelectedBind(c)}
 								style={{
 									display: "flex",
 									alignItems: "center",
 									minHeight: 30,
 									gap: 8,
+									cursor: "pointer",
 								}}
 							>
 								<span
@@ -1672,7 +1708,10 @@ function UDPServerView({ active }: { active: boolean }) {
 								</span>
 								<button
 									className="conn-disconnect"
-									onClick={() => disconnectBind(c)}
+									onClick={(e) => {
+										e.stopPropagation();
+										disconnectBind(c);
+									}}
 									style={{
 										height: 26,
 										lineHeight: "26px",
