@@ -1496,7 +1496,7 @@ function UDPServerView({ active }: { active: boolean }) {
 							}
 							addHistory("bind_ip", ip);
 						}}
-						style={{ width: 150 }}
+						style={{ width: 180 }}
 					/>
 					<datalist id="udp-server-bind-ip-history">
 						{bindIpSuggestions.map((value) => (
@@ -2076,7 +2076,7 @@ function UDPClientView({ active }: { active: boolean }) {
 							setIp(e.currentTarget.value.replace(/[^0-9.]/g, ""))
 						}
 						onBlur={() => addHistory("bind_ip", ip)}
-						style={{ width: 140 }}
+						style={{ width: 168 }}
 					/>
 					<datalist id="detected-ips-tcp">
 						{detectedIps.map((d) => (
@@ -2585,7 +2585,7 @@ function TCPServerView({ active }: { active: boolean }) {
 							setIp(e.currentTarget.value.replace(/[^0-9.]/g, ""))
 						}
 						onBlur={() => addHistory("bind_ip", ip)}
-						style={{ width: 140 }}
+						style={{ width: 168 }}
 					/>
 					<datalist id="detected-ips-tcp-server">
 						{detectedIps.map((d) => (
