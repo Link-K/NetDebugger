@@ -1,7 +1,0 @@
-- 安装依赖: `pnpm install`
-- 前端开发: `pnpm dev`
-- Tauri 开发运行: `pnpm run tauri dev`
-- 前端构建: `pnpm build`
-- Tauri 构建: `pnpm run tauri build`
-- Rust 侧编译检查(在 `src-tauri`): `cargo check`
-- Windows 常用: `dir`, `cd`, `git status`, `rg <pattern>`
